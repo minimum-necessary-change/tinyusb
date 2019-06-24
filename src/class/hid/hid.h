@@ -1,40 +1,28 @@
-/**************************************************************************/
-/*!
-    @file     hid.h
-    @author   hathach (tinyusb.org)
-
-    @section LICENSE
-
-    Software License Agreement (BSD License)
-
-    Copyright (c) 2013, hathach (tinyusb.org)
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are met:
-    1. Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-    2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-    3. Neither the name of the copyright holders nor the
-    names of its contributors may be used to endorse or promote products
-    derived from this software without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION HOWEVER CAUSED AND
-    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    INCLUDING NEGLIGENCE OR OTHERWISE ARISING IN ANY WAY OUT OF THE USE OF THIS
-    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    This file is part of the tinyusb stack.
-*/
-/**************************************************************************/
+/* 
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2019 Ha Thach (tinyusb.org)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * This file is part of the TinyUSB stack.
+ */
 
 /** \ingroup group_class
  *  \defgroup ClassDriver_HID Human Interface Device (HID)
@@ -54,6 +42,20 @@
 //--------------------------------------------------------------------+
 /** \defgroup ClassDriver_HID_Common Common Definitions
  *  @{ */
+
+ /// USB HID Descriptor
+typedef struct TU_ATTR_PACKED
+{
+  uint8_t  bLength;         /**< Numeric expression that is the total size of the HID descriptor */
+  uint8_t  bDescriptorType; /**< Constant name specifying type of HID descriptor. */
+
+  uint16_t bcdHID;          /**< Numeric expression identifying the HID Class Specification release */
+  uint8_t  bCountryCode;    /**< Numeric expression identifying country code of the localized hardware.  */
+  uint8_t  bNumDescriptors; /**< Numeric expression specifying the number of class descriptors */
+
+  uint8_t  bReportType;     /**< Type of HID class report. */
+  uint16_t wReportLength;   /**< the total size of the Report descriptor. */
+} tusb_hid_descriptor_hid_t;
 
 /// HID Subclass
 typedef enum
@@ -81,9 +83,10 @@ typedef enum
 /// HID Request Report Type
 typedef enum
 {
-  HID_REPORT_TYPE_INPUT = 1, ///< Input
-  HID_REPORT_TYPE_OUTPUT,    ///< Output
-  HID_REPORT_TYPE_FEATURE    ///< Feature
+  HID_REPORT_TYPE_INVALID = 0,
+  HID_REPORT_TYPE_INPUT,      ///< Input
+  HID_REPORT_TYPE_OUTPUT,     ///< Output
+  HID_REPORT_TYPE_FEATURE     ///< Feature
 }hid_report_type_t;
 
 /// HID Class Specific Control Request
@@ -97,59 +100,45 @@ typedef enum
   HID_REQ_CONTROL_SET_PROTOCOL = 0x0b  ///< Set Protocol
 }hid_request_type_t;
 
-/// USB HID Descriptor
-typedef struct ATTR_PACKED
-{
-  uint8_t  bLength;         /**< Numeric expression that is the total size of the HID descriptor */
-  uint8_t  bDescriptorType; /**< Constant name specifying type of HID descriptor. */
-
-  uint16_t bcdHID;          /**< Numeric expression identifying the HID Class Specification release */
-  uint8_t  bCountryCode;    /**< Numeric expression identifying country code of the localized hardware.  */
-  uint8_t  bNumDescriptors; /**< Numeric expression specifying the number of class descriptors */
-
-  uint8_t  bReportType;     /**< Type of HID class report. */
-  uint16_t wReportLength;   /**< the total size of the Report descriptor. */
-} tusb_hid_descriptor_hid_t;
-
 /// HID Country Code
 typedef enum
 {
-  HID_Local_NotSupported = 0   , ///< NotSupported
-  HID_Local_Arabic             , ///< Arabic
-  HID_Local_Belgian            , ///< Belgian
-  HID_Local_Canadian_Bilingual , ///< Canadian_Bilingual
-  HID_Local_Canadian_French    , ///< Canadian_French
-  HID_Local_Czech_Republic     , ///< Czech_Republic
-  HID_Local_Danish             , ///< Danish
-  HID_Local_Finnish            , ///< Finnish
-  HID_Local_French             , ///< French
-  HID_Local_German             , ///< German
-  HID_Local_Greek              , ///< Greek
-  HID_Local_Hebrew             , ///< Hebrew
-  HID_Local_Hungary            , ///< Hungary
-  HID_Local_International      , ///< International
-  HID_Local_Italian            , ///< Italian
-  HID_Local_Japan_Katakana     , ///< Japan_Katakana
-  HID_Local_Korean             , ///< Korean
-  HID_Local_Latin_American     , ///< Latin_American
-  HID_Local_Netherlands_Dutch  , ///< Netherlands/Dutch
-  HID_Local_Norwegian          , ///< Norwegian
-  HID_Local_Persian_Farsi      , ///< Persian (Farsi)
-  HID_Local_Poland             , ///< Poland
-  HID_Local_Portuguese         , ///< Portuguese
-  HID_Local_Russia             , ///< Russia
-  HID_Local_Slovakia           , ///< Slovakia
-  HID_Local_Spanish            , ///< Spanish
-  HID_Local_Swedish            , ///< Swedish
-  HID_Local_Swiss_French       , ///< Swiss/French
-  HID_Local_Swiss_German       , ///< Swiss/German
-  HID_Local_Switzerland        , ///< Switzerland
-  HID_Local_Taiwan             , ///< Taiwan
-  HID_Local_Turkish_Q          , ///< Turkish-Q
-  HID_Local_UK                 , ///< UK
-  HID_Local_US                 , ///< US
-  HID_Local_Yugoslavia         , ///< Yugoslavia
-  HID_Local_Turkish_F            ///< Turkish-F
+  HID_LOCAL_NotSupported = 0   , ///< NotSupported
+  HID_LOCAL_Arabic             , ///< Arabic
+  HID_LOCAL_Belgian            , ///< Belgian
+  HID_LOCAL_Canadian_Bilingual , ///< Canadian_Bilingual
+  HID_LOCAL_Canadian_French    , ///< Canadian_French
+  HID_LOCAL_Czech_Republic     , ///< Czech_Republic
+  HID_LOCAL_Danish             , ///< Danish
+  HID_LOCAL_Finnish            , ///< Finnish
+  HID_LOCAL_French             , ///< French
+  HID_LOCAL_German             , ///< German
+  HID_LOCAL_Greek              , ///< Greek
+  HID_LOCAL_Hebrew             , ///< Hebrew
+  HID_LOCAL_Hungary            , ///< Hungary
+  HID_LOCAL_International      , ///< International
+  HID_LOCAL_Italian            , ///< Italian
+  HID_LOCAL_Japan_Katakana     , ///< Japan_Katakana
+  HID_LOCAL_Korean             , ///< Korean
+  HID_LOCAL_Latin_American     , ///< Latin_American
+  HID_LOCAL_Netherlands_Dutch  , ///< Netherlands/Dutch
+  HID_LOCAL_Norwegian          , ///< Norwegian
+  HID_LOCAL_Persian_Farsi      , ///< Persian (Farsi)
+  HID_LOCAL_Poland             , ///< Poland
+  HID_LOCAL_Portuguese         , ///< Portuguese
+  HID_LOCAL_Russia             , ///< Russia
+  HID_LOCAL_Slovakia           , ///< Slovakia
+  HID_LOCAL_Spanish            , ///< Spanish
+  HID_LOCAL_Swedish            , ///< Swedish
+  HID_LOCAL_Swiss_French       , ///< Swiss/French
+  HID_LOCAL_Swiss_German       , ///< Swiss/German
+  HID_LOCAL_Switzerland        , ///< Switzerland
+  HID_LOCAL_Taiwan             , ///< Taiwan
+  HID_LOCAL_Turkish_Q          , ///< Turkish-Q
+  HID_LOCAL_UK                 , ///< UK
+  HID_LOCAL_US                 , ///< US
+  HID_LOCAL_Yugoslavia         , ///< Yugoslavia
+  HID_LOCAL_Turkish_F            ///< Turkish-F
 } hid_country_code_t;
 
 /** @} */
@@ -161,13 +150,13 @@ typedef enum
  *  @{ */
 
 /// Standard HID Boot Protocol Mouse Report.
-typedef struct ATTR_PACKED
+typedef struct TU_ATTR_PACKED
 {
   uint8_t buttons; /**< buttons mask for currently pressed buttons in the mouse. */
   int8_t  x;       /**< Current delta x movement of the mouse. */
   int8_t  y;       /**< Current delta y movement on the mouse. */
   int8_t  wheel;   /**< Current delta wheel movement on the mouse. */
-//  int8_t  pan;
+  int8_t  pan;     // using AC Pan
 } hid_mouse_report_t;
 
 /// Standard Mouse Buttons Bitmap
@@ -189,9 +178,9 @@ typedef enum
  *  @{ */
 
 /// Standard HID Boot Protocol Keyboard Report.
-typedef struct ATTR_PACKED
+typedef struct TU_ATTR_PACKED
 {
-  uint8_t modifier;   /**< Keyboard modifier byte, indicating pressed modifier keys (a combination of HID_KEYBOARD_MODIFER_* masks). */
+  uint8_t modifier;   /**< Keyboard modifier (KEYBOARD_MODIFER_* masks). */
   uint8_t reserved;   /**< Reserved for OEM use, always set to 0. */
   uint8_t keycode[6]; /**< Key codes of the currently pressed keys. */
 } hid_keyboard_report_t;
@@ -473,7 +462,7 @@ enum {
   HID_USAGE_PAGE_MSR             = 0x8e,
   HID_USAGE_PAGE_CAMERA          = 0x90,
   HID_USAGE_PAGE_ARCADE          = 0x91,
-  HID_USAGE_PAGE_VENDOR          = 0xFFFF // 0xFF00 - 0xFFFF
+  HID_USAGE_PAGE_VENDOR          = 0xFF00 // 0xFF00 - 0xFFFF
 };
 
 /// HID Usage Table - Table 6: Generic Desktop Page
@@ -608,6 +597,272 @@ enum
   // Mouse Horizontal scroll
   HID_USAGE_CONSUMER_AC_PAN                            = 0x0238,
 };
+
+/*--------------------------------------------------------------------
+ * ASCII to KEYCODE Conversion
+ *  Expand to array of [128][2] (shift, keycode)
+ *
+ * Usage: example to convert input chr into keyboard report (modifier + keycode)
+ *
+ *  uint8_t const conv_table[128][2] =  { HID_ASCII_TO_KEYCODE };
+ *
+ *  uint8_t keycode[6] = { 0 };
+ *  uint8_t modifier   = 0;
+ *
+ *  if ( conv_table[chr][0] ) modifier = KEYBOARD_MODIFIER_LEFTSHIFT;
+ *  keycode[0] = conv_table[chr][1];
+ *  tud_hid_keyboard_report(report_id, modifier, keycode);
+ *
+ *--------------------------------------------------------------------*/
+#define HID_ASCII_TO_KEYCODE \
+    {0, 0                     }, /* 0x00 Null      */ \
+    {0, 0                     }, /* 0x01           */ \
+    {0, 0                     }, /* 0x02           */ \
+    {0, 0                     }, /* 0x03           */ \
+    {0, 0                     }, /* 0x04           */ \
+    {0, 0                     }, /* 0x05           */ \
+    {0, 0                     }, /* 0x06           */ \
+    {0, 0                     }, /* 0x07           */ \
+    {0, HID_KEY_BACKSPACE     }, /* 0x08 Backspace */ \
+    {0, HID_KEY_TAB           }, /* 0x09 Tab       */ \
+    {0, HID_KEY_RETURN        }, /* 0x0A Line Feed */ \
+    {0, 0                     }, /* 0x0B           */ \
+    {0, 0                     }, /* 0x0C           */ \
+    {0, HID_KEY_RETURN        }, /* 0x0D CR        */ \
+    {0, 0                     }, /* 0x0E           */ \
+    {0, 0                     }, /* 0x0F           */ \
+    {0, 0                     }, /* 0x10           */ \
+    {0, 0                     }, /* 0x11           */ \
+    {0, 0                     }, /* 0x12           */ \
+    {0, 0                     }, /* 0x13           */ \
+    {0, 0                     }, /* 0x14           */ \
+    {0, 0                     }, /* 0x15           */ \
+    {0, 0                     }, /* 0x16           */ \
+    {0, 0                     }, /* 0x17           */ \
+    {0, 0                     }, /* 0x18           */ \
+    {0, 0                     }, /* 0x19           */ \
+    {0, 0                     }, /* 0x1A           */ \
+    {0, HID_KEY_ESCAPE        }, /* 0x1B Escape    */ \
+    {0, 0                     }, /* 0x1C           */ \
+    {0, 0                     }, /* 0x1D           */ \
+    {0, 0                     }, /* 0x1E           */ \
+    {0, 0                     }, /* 0x1F           */ \
+                                                      \
+    {0, HID_KEY_SPACE         }, /* 0x20           */ \
+    {1, HID_KEY_1             }, /* 0x21 !         */ \
+    {1, HID_KEY_APOSTROPHE    }, /* 0x22 "         */ \
+    {1, HID_KEY_3             }, /* 0x23 #         */ \
+    {1, HID_KEY_4             }, /* 0x24 $         */ \
+    {1, HID_KEY_5             }, /* 0x25 %         */ \
+    {1, HID_KEY_7             }, /* 0x26 &         */ \
+    {0, HID_KEY_APOSTROPHE    }, /* 0x27 '         */ \
+    {1, HID_KEY_9             }, /* 0x28 (         */ \
+    {1, HID_KEY_0             }, /* 0x29 )         */ \
+    {1, HID_KEY_8             }, /* 0x2A *         */ \
+    {1, HID_KEY_EQUAL         }, /* 0x2B +         */ \
+    {0, HID_KEY_COMMA         }, /* 0x2C ,         */ \
+    {0, HID_KEY_MINUS         }, /* 0x2D -         */ \
+    {0, HID_KEY_PERIOD        }, /* 0x2E .         */ \
+    {0, HID_KEY_SLASH         }, /* 0x2F /         */ \
+    {0, HID_KEY_0             }, /* 0x30 0         */ \
+    {0, HID_KEY_1             }, /* 0x31 1         */ \
+    {0, HID_KEY_2             }, /* 0x32 2         */ \
+    {0, HID_KEY_3             }, /* 0x33 3         */ \
+    {0, HID_KEY_4             }, /* 0x34 4         */ \
+    {0, HID_KEY_5             }, /* 0x35 5         */ \
+    {0, HID_KEY_6             }, /* 0x36 6         */ \
+    {0, HID_KEY_7             }, /* 0x37 7         */ \
+    {0, HID_KEY_8             }, /* 0x38 8         */ \
+    {0, HID_KEY_9             }, /* 0x39 9         */ \
+    {1, HID_KEY_SEMICOLON     }, /* 0x3A :         */ \
+    {0, HID_KEY_SEMICOLON     }, /* 0x3B ;         */ \
+    {1, HID_KEY_COMMA         }, /* 0x3C <         */ \
+    {0, HID_KEY_EQUAL         }, /* 0x3D =         */ \
+    {1, HID_KEY_PERIOD        }, /* 0x3E >         */ \
+    {1, HID_KEY_SLASH         }, /* 0x3F ?         */ \
+                                                      \
+    {1, HID_KEY_2             }, /* 0x40 @         */ \
+    {1, HID_KEY_A             }, /* 0x41 A         */ \
+    {1, HID_KEY_B             }, /* 0x42 B         */ \
+    {1, HID_KEY_C             }, /* 0x43 C         */ \
+    {1, HID_KEY_D             }, /* 0x44 D         */ \
+    {1, HID_KEY_E             }, /* 0x45 E         */ \
+    {1, HID_KEY_F             }, /* 0x46 F         */ \
+    {1, HID_KEY_G             }, /* 0x47 G         */ \
+    {1, HID_KEY_H             }, /* 0x48 H         */ \
+    {1, HID_KEY_I             }, /* 0x49 I         */ \
+    {1, HID_KEY_J             }, /* 0x4A J         */ \
+    {1, HID_KEY_K             }, /* 0x4B K         */ \
+    {1, HID_KEY_L             }, /* 0x4C L         */ \
+    {1, HID_KEY_M             }, /* 0x4D M         */ \
+    {1, HID_KEY_N             }, /* 0x4E N         */ \
+    {1, HID_KEY_O             }, /* 0x4F O         */ \
+    {1, HID_KEY_P             }, /* 0x50 P         */ \
+    {1, HID_KEY_Q             }, /* 0x51 Q         */ \
+    {1, HID_KEY_R             }, /* 0x52 R         */ \
+    {1, HID_KEY_S             }, /* 0x53 S         */ \
+    {1, HID_KEY_T             }, /* 0x55 T         */ \
+    {1, HID_KEY_U             }, /* 0x55 U         */ \
+    {1, HID_KEY_V             }, /* 0x56 V         */ \
+    {1, HID_KEY_W             }, /* 0x57 W         */ \
+    {1, HID_KEY_X             }, /* 0x58 X         */ \
+    {1, HID_KEY_Y             }, /* 0x59 Y         */ \
+    {1, HID_KEY_Z             }, /* 0x5A Z         */ \
+    {0, HID_KEY_BRACKET_LEFT  }, /* 0x5B [         */ \
+    {0, HID_KEY_BACKSLASH     }, /* 0x5C '\'       */ \
+    {0, HID_KEY_BRACKET_RIGHT }, /* 0x5D ]         */ \
+    {1, HID_KEY_6             }, /* 0x5E ^         */ \
+    {1, HID_KEY_MINUS         }, /* 0x5F _         */ \
+                                                      \
+    {0, HID_KEY_GRAVE         }, /* 0x60 `         */ \
+    {0, HID_KEY_A             }, /* 0x61 a         */ \
+    {0, HID_KEY_B             }, /* 0x62 b         */ \
+    {0, HID_KEY_C             }, /* 0x63 c         */ \
+    {0, HID_KEY_D             }, /* 0x66 d         */ \
+    {0, HID_KEY_E             }, /* 0x65 e         */ \
+    {0, HID_KEY_F             }, /* 0x66 f         */ \
+    {0, HID_KEY_G             }, /* 0x67 g         */ \
+    {0, HID_KEY_H             }, /* 0x68 h         */ \
+    {0, HID_KEY_I             }, /* 0x69 i         */ \
+    {0, HID_KEY_J             }, /* 0x6A j         */ \
+    {0, HID_KEY_K             }, /* 0x6B k         */ \
+    {0, HID_KEY_L             }, /* 0x6C l         */ \
+    {0, HID_KEY_M             }, /* 0x6D m         */ \
+    {0, HID_KEY_N             }, /* 0x6E n         */ \
+    {0, HID_KEY_O             }, /* 0x6F o         */ \
+    {0, HID_KEY_P             }, /* 0x70 p         */ \
+    {0, HID_KEY_Q             }, /* 0x71 q         */ \
+    {0, HID_KEY_R             }, /* 0x72 r         */ \
+    {0, HID_KEY_S             }, /* 0x73 s         */ \
+    {0, HID_KEY_T             }, /* 0x75 t         */ \
+    {0, HID_KEY_U             }, /* 0x75 u         */ \
+    {0, HID_KEY_V             }, /* 0x76 v         */ \
+    {0, HID_KEY_W             }, /* 0x77 w         */ \
+    {0, HID_KEY_X             }, /* 0x78 x         */ \
+    {0, HID_KEY_Y             }, /* 0x79 y         */ \
+    {0, HID_KEY_Z             }, /* 0x7A z         */ \
+    {1, HID_KEY_BRACKET_LEFT  }, /* 0x7B {         */ \
+    {1, HID_KEY_BACKSLASH     }, /* 0x7C |         */ \
+    {1, HID_KEY_BRACKET_RIGHT }, /* 0x7D }         */ \
+    {1, HID_KEY_GRAVE         }, /* 0x7E ~         */ \
+    {0, HID_KEY_DELETE        }  /* 0x7F Delete    */ \
+
+/*--------------------------------------------------------------------
+ * KEYCODE to Ascii Conversion
+ *  Expand to array of [128][2] (ascii without shift, ascii with shift)
+ *
+ * Usage: example to convert ascii from keycode (key) and shift modifier (shift).
+ * Here we assume key < 128 ( printable )
+ *
+ *  uint8_t const conv_table[128][2] =  { HID_KEYCODE_TO_ASCII };
+ *  char ch = shift ? conv_table[chr][1] : conv_table[chr][0];
+ *
+ *--------------------------------------------------------------------*/
+#define HID_KEYCODE_TO_ASCII    \
+    {0     , 0      }, /* 0x00 */ \
+    {0     , 0      }, /* 0x01 */ \
+    {0     , 0      }, /* 0x02 */ \
+    {0     , 0      }, /* 0x03 */ \
+    {'a'   , 'A'    }, /* 0x04 */ \
+    {'b'   , 'B'    }, /* 0x05 */ \
+    {'c'   , 'C'    }, /* 0x06 */ \
+    {'d'   , 'D'    }, /* 0x07 */ \
+    {'e'   , 'E'    }, /* 0x08 */ \
+    {'f'   , 'F'    }, /* 0x09 */ \
+    {'g'   , 'G'    }, /* 0x0a */ \
+    {'h'   , 'H'    }, /* 0x0b */ \
+    {'i'   , 'I'    }, /* 0x0c */ \
+    {'j'   , 'J'    }, /* 0x0d */ \
+    {'k'   , 'K'    }, /* 0x0e */ \
+    {'l'   , 'L'    }, /* 0x0f */ \
+    {'m'   , 'M'    }, /* 0x10 */ \
+    {'n'   , 'N'    }, /* 0x11 */ \
+    {'o'   , 'O'    }, /* 0x12 */ \
+    {'p'   , 'P'    }, /* 0x13 */ \
+    {'q'   , 'Q'    }, /* 0x14 */ \
+    {'r'   , 'R'    }, /* 0x15 */ \
+    {'s'   , 'S'    }, /* 0x16 */ \
+    {'t'   , 'T'    }, /* 0x17 */ \
+    {'u'   , 'U'    }, /* 0x18 */ \
+    {'v'   , 'V'    }, /* 0x19 */ \
+    {'w'   , 'W'    }, /* 0x1a */ \
+    {'x'   , 'X'    }, /* 0x1b */ \
+    {'y'   , 'Y'    }, /* 0x1c */ \
+    {'z'   , 'Z'    }, /* 0x1d */ \
+    {'1'   , '!'    }, /* 0x1e */ \
+    {'2'   , '@'    }, /* 0x1f */ \
+    {'3'   , '#'    }, /* 0x20 */ \
+    {'4'   , '$'    }, /* 0x21 */ \
+    {'5'   , '%'    }, /* 0x22 */ \
+    {'6'   , '^'    }, /* 0x23 */ \
+    {'7'   , '&'    }, /* 0x24 */ \
+    {'8'   , '*'    }, /* 0x25 */ \
+    {'9'   , '('    }, /* 0x26 */ \
+    {'0'   , ')'    }, /* 0x27 */ \
+    {'\r'  , '\r'   }, /* 0x28 */ \
+    {'\x1b', '\x1b' }, /* 0x29 */ \
+    {'\b'  , '\b'   }, /* 0x2a */ \
+    {'\t'  , '\t'   }, /* 0x2b */ \
+    {' '   , ' '    }, /* 0x2c */ \
+    {'-'   , '_'    }, /* 0x2d */ \
+    {'='   , '+'    }, /* 0x2e */ \
+    {'['   , '{'    }, /* 0x2f */ \
+    {']'   , '}'    }, /* 0x30 */ \
+    {'\\'  , '|'    }, /* 0x31 */ \
+    {'#'   , '~'    }, /* 0x32 */ \
+    {';'   , ':'    }, /* 0x33 */ \
+    {'\''  , '\"'   }, /* 0x34 */ \
+    {0     , 0      }, /* 0x35 */ \
+    {','   , '<'    }, /* 0x36 */ \
+    {'.'   , '>'    }, /* 0x37 */ \
+    {'/'   , '?'    }, /* 0x38 */ \
+                                  \
+    {0     , 0      }, /* 0x39 */ \
+    {0     , 0      }, /* 0x3a */ \
+    {0     , 0      }, /* 0x3b */ \
+    {0     , 0      }, /* 0x3c */ \
+    {0     , 0      }, /* 0x3d */ \
+    {0     , 0      }, /* 0x3e */ \
+    {0     , 0      }, /* 0x3f */ \
+    {0     , 0      }, /* 0x40 */ \
+    {0     , 0      }, /* 0x41 */ \
+    {0     , 0      }, /* 0x42 */ \
+    {0     , 0      }, /* 0x43 */ \
+    {0     , 0      }, /* 0x44 */ \
+    {0     , 0      }, /* 0x45 */ \
+    {0     , 0      }, /* 0x46 */ \
+    {0     , 0      }, /* 0x47 */ \
+    {0     , 0      }, /* 0x48 */ \
+    {0     , 0      }, /* 0x49 */ \
+    {0     , 0      }, /* 0x4a */ \
+    {0     , 0      }, /* 0x4b */ \
+    {0     , 0      }, /* 0x4c */ \
+    {0     , 0      }, /* 0x4d */ \
+    {0     , 0      }, /* 0x4e */ \
+    {0     , 0      }, /* 0x4f */ \
+    {0     , 0      }, /* 0x50 */ \
+    {0     , 0      }, /* 0x51 */ \
+    {0     , 0      }, /* 0x52 */ \
+    {0     , 0      }, /* 0x53 */ \
+                                  \
+    {'/'   , '/'    }, /* 0x54 */ \
+    {'*'   , '*'    }, /* 0x55 */ \
+    {'-'   , '-'    }, /* 0x56 */ \
+    {'+'   , '+'    }, /* 0x57 */ \
+    {'\r'  , '\r'   }, /* 0x58 */ \
+    {'1'   , 0      }, /* 0x59 */ \
+    {'2'   , 0      }, /* 0x5a */ \
+    {'3'   , 0      }, /* 0x5b */ \
+    {'4'   , 0      }, /* 0x5c */ \
+    {'5'   , '5'    }, /* 0x5d */ \
+    {'6'   , 0      }, /* 0x5e */ \
+    {'7'   , 0      }, /* 0x5f */ \
+    {'8'   , 0      }, /* 0x60 */ \
+    {'9'   , 0      }, /* 0x61 */ \
+    {'0'   , 0      }, /* 0x62 */ \
+    {'0'   , 0      }, /* 0x63 */ \
+    {'='   , '='    }, /* 0x67 */ \
+
 
 #ifdef __cplusplus
  }

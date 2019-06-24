@@ -1,40 +1,28 @@
-/**************************************************************************/
-/*!
-    @file     dcd_nrf5x.c
-    @author   hathach
-
-    @section LICENSE
-
-    Software License Agreement (BSD License)
-
-    Copyright (c) 2018, Scott Shawcroft for Adafruit Industries
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are met:
-    1. Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-    2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-    3. Neither the name of the copyright holders nor the
-    names of its contributors may be used to endorse or promote products
-    derived from this software without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    This file is part of the tinyusb stack.
-*/
-/**************************************************************************/
+/*
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2018 Scott Shawcroft for Adafruit Industries
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * This file is part of the TinyUSB stack.
+ */
 
 #include "tusb_option.h"
 
@@ -46,30 +34,31 @@
 /*------------------------------------------------------------------*/
 /* MACRO TYPEDEF CONSTANT ENUM
  *------------------------------------------------------------------*/
-static ATTR_ALIGNED(4) UsbDeviceDescBank sram_registers[8][2];
-static ATTR_ALIGNED(4) uint8_t _setup_packet[8];
+static TU_ATTR_ALIGNED(4) UsbDeviceDescBank sram_registers[8][2];
+static TU_ATTR_ALIGNED(4) uint8_t _setup_packet[8];
 
 // Setup the control endpoint 0.
-static void bus_reset(void) {
-    // Max size of packets is 64 bytes.
-    UsbDeviceDescBank* bank_out = &sram_registers[0][TUSB_DIR_OUT];
-    bank_out->PCKSIZE.bit.SIZE = 0x3;
-    UsbDeviceDescBank* bank_in = &sram_registers[0][TUSB_DIR_IN];
-    bank_in->PCKSIZE.bit.SIZE = 0x3;
+static void bus_reset(void)
+{
+  // Max size of packets is 64 bytes.
+  UsbDeviceDescBank* bank_out = &sram_registers[0][TUSB_DIR_OUT];
+  bank_out->PCKSIZE.bit.SIZE = 0x3;
+  UsbDeviceDescBank* bank_in = &sram_registers[0][TUSB_DIR_IN];
+  bank_in->PCKSIZE.bit.SIZE = 0x3;
 
-    UsbDeviceEndpoint* ep = &USB->DEVICE.DeviceEndpoint[0];
-    ep->EPCFG.reg = USB_DEVICE_EPCFG_EPTYPE0(0x1) | USB_DEVICE_EPCFG_EPTYPE1(0x1);
-    ep->EPINTENSET.reg = USB_DEVICE_EPINTENSET_TRCPT0 | USB_DEVICE_EPINTENSET_TRCPT1 | USB_DEVICE_EPINTENSET_RXSTP;
+  UsbDeviceEndpoint* ep = &USB->DEVICE.DeviceEndpoint[0];
+  ep->EPCFG.reg = USB_DEVICE_EPCFG_EPTYPE0(0x1) | USB_DEVICE_EPCFG_EPTYPE1(0x1);
+  ep->EPINTENSET.reg = USB_DEVICE_EPINTENSET_TRCPT0 | USB_DEVICE_EPINTENSET_TRCPT1 | USB_DEVICE_EPINTENSET_RXSTP;
 
-    // Prepare for setup packet
-    dcd_edpt_xfer(0, 0, _setup_packet, sizeof(_setup_packet));
+  // Prepare for setup packet
+  dcd_edpt_xfer(0, 0, _setup_packet, sizeof(_setup_packet));
 }
 
 
 /*------------------------------------------------------------------*/
 /* Controller API
  *------------------------------------------------------------------*/
-bool dcd_init (uint8_t rhport)
+void dcd_init (uint8_t rhport)
 {
   (void) rhport;
 
@@ -91,9 +80,8 @@ bool dcd_init (uint8_t rhport)
   USB->DEVICE.CTRLA.reg = USB_CTRLA_MODE_DEVICE | USB_CTRLA_ENABLE | USB_CTRLA_RUNSTDBY;
   while (USB->DEVICE.SYNCBUSY.bit.ENABLE == 1) {}
 
+  USB->DEVICE.INTFLAG.reg |= USB->DEVICE.INTFLAG.reg; // clear pending
   USB->DEVICE.INTENSET.reg = USB_DEVICE_INTENSET_SOF | USB_DEVICE_INTENSET_EORST;
-
-  return true;
 }
 
 void dcd_int_enable(uint8_t rhport)
@@ -110,11 +98,17 @@ void dcd_int_disable(uint8_t rhport)
 
 void dcd_set_address (uint8_t rhport, uint8_t dev_addr)
 {
-  (void) rhport;
+  // Response with status first before changing device address
+  dcd_edpt_xfer(rhport, tu_edpt_addr(0, TUSB_DIR_IN), NULL, 0);
 
   // Wait for EP0 to finish before switching the address.
   while (USB->DEVICE.DeviceEndpoint[0].EPSTATUS.bit.BK1RDY == 1) {}
+
   USB->DEVICE.DADD.reg = USB_DEVICE_DADD_DADD(dev_addr) | USB_DEVICE_DADD_ADDEN;
+
+  // Enable SUSPEND interrupt since the bus signal D+/D- are stable now.
+  USB->DEVICE.INTFLAG.reg = USB_DEVICE_INTENCLR_SUSPEND; // clear pending
+  USB->DEVICE.INTENSET.reg = USB_DEVICE_INTENSET_SUSPEND;
 }
 
 void dcd_set_config (uint8_t rhport, uint8_t config_num)
@@ -122,12 +116,14 @@ void dcd_set_config (uint8_t rhport, uint8_t config_num)
   (void) rhport;
   (void) config_num;
   // Nothing to do
+
 }
 
-uint32_t dcd_get_frame_number(uint8_t rhport)
+void dcd_remote_wakeup(uint8_t rhport)
 {
   (void) rhport;
-  return USB->DEVICE.FNUM.bit.FNUM;
+
+  USB->DEVICE.CTRLB.bit.UPRSM = 1;
 }
 
 /*------------------------------------------------------------------*/
@@ -205,20 +201,6 @@ bool dcd_edpt_xfer (uint8_t rhport, uint8_t ep_addr, uint8_t * buffer, uint16_t 
   return true;
 }
 
-bool dcd_edpt_stalled (uint8_t rhport, uint8_t ep_addr)
-{
-  (void) rhport;
-
-  // control is never got halted
-  if ( ep_addr == 0 ) {
-      return false;
-  }
-
-  uint8_t const epnum = tu_edpt_number(ep_addr);
-  UsbDeviceEndpoint* ep = &USB->DEVICE.DeviceEndpoint[epnum];
-  return (tu_edpt_dir(ep_addr) == TUSB_DIR_IN ) ? ep->EPINTFLAG.bit.STALL1 : ep->EPINTFLAG.bit.STALL0;
-}
-
 void dcd_edpt_stall (uint8_t rhport, uint8_t ep_addr)
 {
   (void) rhport;
@@ -230,11 +212,6 @@ void dcd_edpt_stall (uint8_t rhport, uint8_t ep_addr)
       ep->EPSTATUSSET.reg = USB_DEVICE_EPSTATUSSET_STALLRQ1;
   } else {
       ep->EPSTATUSSET.reg = USB_DEVICE_EPSTATUSSET_STALLRQ0;
-
-      // for control, stall both IN & OUT
-      if (ep_addr == 0) {
-        ep->EPSTATUSSET.reg = USB_DEVICE_EPSTATUSSET_STALLRQ1;
-      }
   }
 }
 
@@ -246,9 +223,9 @@ void dcd_edpt_clear_stall (uint8_t rhport, uint8_t ep_addr)
   UsbDeviceEndpoint* ep = &USB->DEVICE.DeviceEndpoint[epnum];
 
   if (tu_edpt_dir(ep_addr) == TUSB_DIR_IN) {
-    ep->EPSTATUSCLR.reg = USB_DEVICE_EPSTATUSCLR_STALLRQ1;
+    ep->EPSTATUSCLR.reg = USB_DEVICE_EPSTATUSCLR_STALLRQ1 | USB_DEVICE_EPSTATUSCLR_DTGLIN;
   } else {
-    ep->EPSTATUSCLR.reg = USB_DEVICE_EPSTATUSCLR_STALLRQ0;
+    ep->EPSTATUSCLR.reg = USB_DEVICE_EPSTATUSCLR_STALLRQ0 | USB_DEVICE_EPSTATUSCLR_DTGLOUT;
   }
 }
 
@@ -327,21 +304,46 @@ void maybe_transfer_complete(void) {
     }
 }
 
-void USB_Handler(void) {
-  uint32_t int_status = USB->DEVICE.INTFLAG.reg;
+void USB_Handler(void)
+{
+  uint32_t int_status = USB->DEVICE.INTFLAG.reg & USB->DEVICE.INTENSET.reg;
+  USB->DEVICE.INTFLAG.reg = int_status; // clear interrupt
 
   /*------------- Interrupt Processing -------------*/
-  if ( int_status & USB_DEVICE_INTFLAG_EORST )
-  {
-    USB->DEVICE.INTFLAG.reg = USB_DEVICE_INTENCLR_EORST;
-    bus_reset();
-    dcd_event_bus_signal(0, DCD_EVENT_BUS_RESET, true);
-  }
-
   if ( int_status & USB_DEVICE_INTFLAG_SOF )
   {
-    USB->DEVICE.INTFLAG.reg = USB_DEVICE_INTFLAG_SOF;
     dcd_event_bus_signal(0, DCD_EVENT_SOF, true);
+  }
+
+  // SAMD doesn't distinguish between Suspend and Disconnect state.
+  // Both condition will cause SUSPEND interrupt triggered.
+  // To prevent being triggered when D+/D- are not stable, SUSPEND interrupt is only
+  // enabled when we received SET_ADDRESS request and cleared on Bus Reset
+  if ( int_status & USB_DEVICE_INTFLAG_SUSPEND )
+  {
+    // Enable wakeup interrupt
+    USB->DEVICE.INTFLAG.reg = USB_DEVICE_INTFLAG_WAKEUP; // clear pending
+    USB->DEVICE.INTENSET.reg = USB_DEVICE_INTFLAG_WAKEUP;
+
+    dcd_event_bus_signal(0, DCD_EVENT_SUSPEND, true);
+  }
+
+  // Wakeup interrupt is only enabled when we got suspended.
+  // Wakeup interrupt will disable itself
+  if ( int_status & USB_DEVICE_INTFLAG_WAKEUP )
+  {
+    // disable wakeup interrupt itself
+    USB->DEVICE.INTENCLR.reg = USB_DEVICE_INTFLAG_WAKEUP;
+    dcd_event_bus_signal(0, DCD_EVENT_RESUME, true);
+  }
+
+  if ( int_status & USB_DEVICE_INTFLAG_EORST )
+  {
+    // Disable both suspend and wakeup interrupt
+    USB->DEVICE.INTENCLR.reg = USB_DEVICE_INTFLAG_WAKEUP | USB_DEVICE_INTFLAG_SUSPEND;
+
+    bus_reset();
+    dcd_event_bus_signal(0, DCD_EVENT_BUS_RESET, true);
   }
 
   // Setup packet received.

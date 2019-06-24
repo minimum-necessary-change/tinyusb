@@ -1,40 +1,28 @@
-/**************************************************************************/
-/*!
-    @file     compiler.h
-    @author   hathach (tinyusb.org)
-
-    @section LICENSE
-
-    Software License Agreement (BSD License)
-
-    Copyright (c) 2013, hathach (tinyusb.org)
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are met:
-    1. Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-    2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-    3. Neither the name of the copyright holders nor the
-    names of its contributors may be used to endorse or promote products
-    derived from this software without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION HOWEVER CAUSED AND
-    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    INCLUDING NEGLIGENCE OR OTHERWISE ARISING IN ANY WAY OUT OF THE USE OF THIS
-    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-	  This file is part of the tinyusb stack.
-*/
-/**************************************************************************/
+/* 
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2019 Ha Thach (tinyusb.org)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * This file is part of the TinyUSB stack.
+ */
 
 /** \ingroup Group_Common
  *  \defgroup Group_Compiler Compiler
@@ -44,10 +32,10 @@
 #ifndef _TUSB_COMPILER_H_
 #define _TUSB_COMPILER_H_
 
-#define STRING_(x)            #x                   ///< stringify without expand
-#define XSTRING_(x)           STRING_(x)           ///< expand then stringify
-#define STRING_CONCAT_(a, b)  a##b                 ///< concat without expand
-#define XSTRING_CONCAT_(a, b) STRING_CONCAT_(a, b) ///< expand then concat
+#define TU_STRING(x)      #x              ///< stringify without expand
+#define TU_XSTRING(x)     TU_STRING(x)    ///< expand then stringify
+#define TU_STRCAT(a, b)   a##b            ///< concat without expand
+#define TU_XSTRCAT(a, b)  TU_STRCAT(a, b) ///< expand then concat
 
 #if defined __COUNTER__ && __COUNTER__ != __COUNTER__
   #define _TU_COUNTER_ __COUNTER__
@@ -55,27 +43,44 @@
   #define _TU_COUNTER_ __LINE__
 #endif
 
-//--------------------------------------------------------------------+
-// Compile-time Assert (use TU_VERIFY_STATIC to avoid name conflict)
-//--------------------------------------------------------------------+
+// Compile-time Assert
 #if __STDC_VERSION__ >= 201112L
   #define TU_VERIFY_STATIC   _Static_assert
 #else
-  #define TU_VERIFY_STATIC(const_expr, _mess) enum { XSTRING_CONCAT_(_verify_static_, _TU_COUNTER_) = 1/(!!(const_expr)) }
+  #define TU_VERIFY_STATIC(const_expr, _mess) enum { TU_XSTRCAT(_verify_static_, _TU_COUNTER_) = 1/(!!(const_expr)) }
 #endif
 
-// allow debugger to watch any module-wide variables anywhere
-#if CFG_TUSB_DEBUG
-#define STATIC_VAR
-#else
-#define STATIC_VAR static
-#endif
+// for declaration of reserved field, make use of _TU_COUNTER_
+#define TU_RESERVED           TU_XSTRCAT(reserved, _TU_COUNTER_)
 
-
+//--------------------------------------------------------------------+
+// Compiler porting with Attribute and Endian
+//--------------------------------------------------------------------+
 #if defined(__GNUC__)
-  #include "compiler/tusb_compiler_gcc.h"
-#elif defined __ICCARM__
-  #include "compiler/tusb_compiler_iar.h"
+  #define TU_ATTR_ALIGNED(Bytes)        __attribute__ ((aligned(Bytes)))
+  #define TU_ATTR_SECTION(sec_name)     __attribute__ ((section(#sec_name)))
+  #define TU_ATTR_PACKED                __attribute__ ((packed))
+  #define TU_ATTR_PREPACKED
+  #define TU_ATTR_WEAK                  __attribute__ ((weak))
+  #define TU_ATTR_DEPRECATED(mess)      __attribute__ ((deprecated(mess))) // warn if function with this attribute is used
+  #define TU_ATTR_UNUSED                __attribute__ ((unused))           // Function/Variable is meant to be possibly unused
+
+  // Endian conversion use well-known host to network (big endian) naming
+  #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+    #define tu_htonl(u32)  __builtin_bswap32(u32)
+    #define tu_ntohl(u32)  __builtin_bswap32(u32)
+
+    #define tu_htons(u16)  __builtin_bswap16(u16)
+    #define tu_ntohs(u16)  __builtin_bswap16(u16)
+  #else
+    #define tu_htonl(u32)  (u32)
+    #define tu_ntohl(u32)  (u32)
+
+    #define tu_htons(u16)  (u16)
+    #define tu_ntohs(u16)  (u16)
+  #endif
+#else
+  #error "Compiler attribute porting are required"
 #endif
 
 #endif /* _TUSB_COMPILER_H_ */

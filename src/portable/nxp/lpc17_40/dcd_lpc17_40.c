@@ -1,40 +1,28 @@
-/**************************************************************************/
-/*!
-    @file     dcd_lpc175x_6x.c
-    @author   hathach (tinyusb.org)
-
-    @section LICENSE
-
-    Software License Agreement (BSD License)
-
-    Copyright (c) 2013, hathach (tinyusb.org)
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are met:
-    1. Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-    2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-    3. Neither the name of the copyright holders nor the
-    names of its contributors may be used to endorse or promote products
-    derived from this software without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    This file is part of the tinyusb stack.
-*/
-/**************************************************************************/
+/* 
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2019 Ha Thach (tinyusb.org)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * This file is part of the TinyUSB stack.
+ */
 
 #include "tusb_option.h"
 
@@ -49,7 +37,7 @@
 //--------------------------------------------------------------------+
 #define DCD_ENDPOINT_MAX 32
 
-typedef struct ATTR_ALIGNED(4)
+typedef struct TU_ATTR_ALIGNED(4)
 {
   //------------- Word 0 -------------//
   uint32_t next;
@@ -103,7 +91,7 @@ typedef struct
 
 } dcd_data_t;
 
-CFG_TUSB_MEM_SECTION ATTR_ALIGNED(128) static dcd_data_t _dcd;
+CFG_TUSB_MEM_SECTION TU_ATTR_ALIGNED(128) static dcd_data_t _dcd;
 
 
 //--------------------------------------------------------------------+
@@ -178,7 +166,7 @@ static void bus_reset(void)
   tu_memclr(&_dcd, sizeof(dcd_data_t));
 }
 
-bool dcd_init(uint8_t rhport)
+void dcd_init(uint8_t rhport)
 {
   (void) rhport;
 
@@ -197,9 +185,6 @@ bool dcd_init(uint8_t rhport)
 
   // USB IRQ priority should be set by application previously
   NVIC_ClearPendingIRQ(USB_IRQn);
-  NVIC_EnableIRQ(USB_IRQn);
-
-  return TUSB_ERROR_NONE;
 }
 
 void dcd_int_enable(uint8_t rhport)
@@ -216,7 +201,9 @@ void dcd_int_disable(uint8_t rhport)
 
 void dcd_set_address(uint8_t rhport, uint8_t dev_addr)
 {
-  (void) rhport;
+  // Response with status first before changing device address
+  dcd_edpt_xfer(rhport, tu_edpt_addr(0, TUSB_DIR_IN), NULL, 0);
+
   sie_write(SIE_CMDCODE_SET_ADDRESS, 1, 0x80 | dev_addr); // 7th bit is : device_enable
 }
 
@@ -227,10 +214,9 @@ void dcd_set_config(uint8_t rhport, uint8_t config_num)
   sie_write(SIE_CMDCODE_CONFIGURE_DEVICE, 1, 1);
 }
 
-uint32_t dcd_get_frame_number(uint8_t rhport)
+void dcd_remote_wakeup(uint8_t rhport)
 {
   (void) rhport;
-  return (uint32_t) sie_read(SIE_CMDCODE_READ_FRAME_NUMBER);
 }
 
 //--------------------------------------------------------------------+
@@ -358,14 +344,6 @@ void dcd_edpt_clear_stall(uint8_t rhport, uint8_t ep_addr)
   uint8_t ep_id = ep_addr2idx(ep_addr);
 
   sie_write(SIE_CMDCODE_ENDPOINT_SET_STATUS+ep_id, 1, 0);
-}
-
-bool dcd_edpt_stalled (uint8_t rhport, uint8_t ep_addr)
-{
-  (void) rhport;
-
-  uint8_t const ep_state = sie_read(SIE_CMDCODE_ENDPOINT_SELECT +  ep_addr2idx(ep_addr));
-  return (ep_state & SIE_SELECT_ENDPOINT_STALL_MASK) ? true : false;
 }
 
 static bool control_xact(uint8_t rhport, uint8_t dir, uint8_t * buffer, uint8_t len)
@@ -505,7 +483,7 @@ static void bus_event_isr(uint8_t rhport)
   {
     if (dev_status & SIE_DEV_STATUS_SUSPEND_MASK)
     {
-      dcd_event_bus_signal(rhport, DCD_EVENT_SUSPENDED, true);
+      dcd_event_bus_signal(rhport, DCD_EVENT_SUSPEND, true);
     }
     else
     {
@@ -552,7 +530,7 @@ void hal_dcd_isr(uint8_t rhport)
   {
     for ( uint8_t ep_id = 3; ep_id < DCD_ENDPOINT_MAX; ep_id += 2 )
     {
-      if ( TU_BIT_TEST(ep_int_status, ep_id) )
+      if ( tu_bit_test(ep_int_status, ep_id) )
       {
         LPC_USB->EpIntClr = TU_BIT(ep_id);
 
@@ -575,7 +553,7 @@ void hal_dcd_isr(uint8_t rhport)
 
     for ( uint8_t ep_id = 2; ep_id < DCD_ENDPOINT_MAX; ep_id++ )
     {
-      if ( TU_BIT_TEST(eot, ep_id) )
+      if ( tu_bit_test(eot, ep_id) )
       {
         if ( ep_id & 0x01 )
         {

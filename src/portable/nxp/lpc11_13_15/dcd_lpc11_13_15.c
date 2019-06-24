@@ -1,40 +1,28 @@
-/**************************************************************************/
-/*!
-    @file     dcd_lpc11_13_15.c
-    @author   hathach (tinyusb.org)
-
-    @section LICENSE
-
-    Software License Agreement (BSD License)
-
-    Copyright (c) 2013, hathach (tinyusb.org)
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are met:
-    1. Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-    2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-    3. Neither the name of the copyright holders nor the
-    names of its contributors may be used to endorse or promote products
-    derived from this software without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    This file is part of the tinyusb stack.
-*/
-/**************************************************************************/
+/* 
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2019 Ha Thach (tinyusb.org)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * This file is part of the TinyUSB stack.
+ */
 
 #include "tusb_option.h"
 
@@ -42,7 +30,6 @@
 
 #include "chip.h"
 #include "device/dcd.h"
-#include "dcd_lpc11_13_15.h"
 
 //--------------------------------------------------------------------+
 // MACRO CONSTANT TYPEDEF
@@ -80,7 +67,7 @@ enum {
   CMDSTAT_VBUS_DEBOUNCED_MASK = TU_BIT(28),
 };
 
-typedef struct ATTR_PACKED
+typedef struct TU_ATTR_PACKED
 {
   // Bits 21:6 (aligned 64) used in conjunction with bit 31:22 of DATABUFSTART
   volatile uint16_t buffer_offset;
@@ -114,7 +101,7 @@ typedef struct
 
   xfer_dma_t dma[EP_COUNT];
 
-  ATTR_ALIGNED(64) uint8_t setup_packet[8];
+  TU_ATTR_ALIGNED(64) uint8_t setup_packet[8];
 }dcd_data_t;
 
 //--------------------------------------------------------------------+
@@ -122,7 +109,7 @@ typedef struct
 //--------------------------------------------------------------------+
 
 // EP list must be 256-byte aligned
-CFG_TUSB_MEM_SECTION ATTR_ALIGNED(256) static dcd_data_t _dcd;
+CFG_TUSB_MEM_SECTION TU_ATTR_ALIGNED(256) static dcd_data_t _dcd;
 
 static inline uint16_t get_buf_offset(void const * buffer)
 {
@@ -139,6 +126,21 @@ static inline uint8_t ep_addr2id(uint8_t endpoint_addr)
 //--------------------------------------------------------------------+
 // CONTROLLER API
 //--------------------------------------------------------------------+
+void dcd_init(uint8_t rhport)
+{
+  (void) rhport;
+
+  LPC_USB->EPLISTSTART  = (uint32_t) _dcd.ep;
+  LPC_USB->DATABUFSTART = SRAM_REGION;
+
+  LPC_USB->INTSTAT      = LPC_USB->INTSTAT; // clear all pending interrupt
+  LPC_USB->INTEN        = INT_DEVICE_STATUS_MASK;
+  LPC_USB->DEVCMDSTAT  |= CMDSTAT_DEVICE_ENABLE_MASK | CMDSTAT_DEVICE_CONNECT_MASK |
+                          CMDSTAT_RESET_CHANGE_MASK | CMDSTAT_CONNECT_CHANGE_MASK | CMDSTAT_SUSPEND_CHANGE_MASK;
+
+  NVIC_ClearPendingIRQ(USB0_IRQn);
+}
+
 void dcd_int_enable(uint8_t rhport)
 {
   (void) rhport;
@@ -151,42 +153,24 @@ void dcd_int_disable(uint8_t rhport)
   NVIC_DisableIRQ(USB0_IRQn);
 }
 
+void dcd_set_address(uint8_t rhport, uint8_t dev_addr)
+{
+  // Response with status first before changing device address
+  dcd_edpt_xfer(rhport, tu_edpt_addr(0, TUSB_DIR_IN), NULL, 0);
+
+  LPC_USB->DEVCMDSTAT &= ~CMDSTAT_DEVICE_ADDR_MASK;
+  LPC_USB->DEVCMDSTAT |= dev_addr;
+}
+
 void dcd_set_config(uint8_t rhport, uint8_t config_num)
 {
   (void) rhport;
   (void) config_num;
 }
 
-void dcd_set_address(uint8_t rhport, uint8_t dev_addr)
+void dcd_remote_wakeup(uint8_t rhport)
 {
   (void) rhport;
-
-  LPC_USB->DEVCMDSTAT &= ~CMDSTAT_DEVICE_ADDR_MASK;
-  LPC_USB->DEVCMDSTAT |= dev_addr;
-}
-
-uint32_t dcd_get_frame_number(uint8_t rhport)
-{
-  (void) rhport;
-
-  return LPC_USB->INFO & (TU_BIT(11) - 1);
-}
-
-bool dcd_init(uint8_t rhport)
-{
-  (void) rhport;
-
-  LPC_USB->EPLISTSTART  = (uint32_t) _dcd.ep;
-  LPC_USB->DATABUFSTART = SRAM_REGION;
-
-  LPC_USB->INTSTAT      = LPC_USB->INTSTAT; // clear all pending interrupt
-  LPC_USB->INTEN        = INT_DEVICE_STATUS_MASK;
-  LPC_USB->DEVCMDSTAT  |= CMDSTAT_DEVICE_ENABLE_MASK | CMDSTAT_DEVICE_CONNECT_MASK |
-                          CMDSTAT_RESET_CHANGE_MASK | CMDSTAT_CONNECT_CHANGE_MASK | CMDSTAT_SUSPEND_CHANGE_MASK;
-
-  NVIC_EnableIRQ(USB0_IRQn);
-
-  return true;
 }
 
 //--------------------------------------------------------------------+
@@ -196,24 +180,9 @@ void dcd_edpt_stall(uint8_t rhport, uint8_t ep_addr)
 {
   (void) rhport;
 
-  if ( tu_edpt_number(ep_addr) == 0 )
-  {
-    // TODO cannot able to STALL Control OUT endpoint !!!!! FIXME try some walk-around
-    _dcd.ep[0][0].stall = _dcd.ep[1][0].stall = 1;
-  }
-  else
-  {
-    uint8_t const ep_id = ep_addr2id(ep_addr);
-    _dcd.ep[ep_id][0].stall = 1;
-  }
-}
-
-bool dcd_edpt_stalled(uint8_t rhport, uint8_t ep_addr)
-{
-  (void) rhport;
-
+  // TODO cannot able to STALL Control OUT endpoint !!!!! FIXME try some walk-around
   uint8_t const ep_id = ep_addr2id(ep_addr);
-  return _dcd.ep[ep_id][0].stall;
+  _dcd.ep[ep_id][0].stall = 1;
 }
 
 void dcd_edpt_clear_stall(uint8_t rhport, uint8_t ep_addr)
@@ -310,7 +279,7 @@ static void process_xfer_isr(uint32_t int_status)
 {
   for(uint8_t ep_id = 0; ep_id < EP_COUNT; ep_id++ )
   {
-    if ( TU_BIT_TEST(int_status, ep_id) )
+    if ( tu_bit_test(int_status, ep_id) )
     {
       ep_cmd_sts_t * ep_cs = &_dcd.ep[ep_id][0];
       xfer_dma_t* xfer_dma = &_dcd.dma[ep_id];
@@ -373,7 +342,7 @@ void USB_IRQHandler(void)
         // Note: Host may delay more than 3 ms before and/or after bus reset before doing enumeration.
         if (dev_cmd_stat & CMDSTAT_DEVICE_ADDR_MASK)
         {
-          dcd_event_bus_signal(0, DCD_EVENT_SUSPENDED, true);
+          dcd_event_bus_signal(0, DCD_EVENT_SUSPEND, true);
         }
       }
     }
@@ -385,7 +354,7 @@ void USB_IRQHandler(void)
   }
 
   // Setup Receive
-  if ( TU_BIT_TEST(int_status, 0) && (dev_cmd_stat & CMDSTAT_SETUP_RECEIVED_MASK) )
+  if ( tu_bit_test(int_status, 0) && (dev_cmd_stat & CMDSTAT_SETUP_RECEIVED_MASK) )
   {
     // Follow UM flowchart to clear Active & Stall on both Control IN/OUT endpoints
     _dcd.ep[0][0].active = _dcd.ep[1][0].active = 0;
@@ -399,7 +368,7 @@ void USB_IRQHandler(void)
     _dcd.ep[0][1].buffer_offset = get_buf_offset(_dcd.setup_packet);
 
     // clear bit0
-    int_status = TU_BIT_CLEAR(int_status, 0);
+    int_status = tu_bit_clear(int_status, 0);
   }
 
   // Endpoint transfer complete interrupt

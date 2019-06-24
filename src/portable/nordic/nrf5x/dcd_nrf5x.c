@@ -1,40 +1,28 @@
-/**************************************************************************/
-/*!
-    @file     dcd_nrf5x.c
-    @author   hathach
-
-    @section LICENSE
-
-    Software License Agreement (BSD License)
-
-    Copyright (c) 2018, hathach (tinyusb.org)
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are met:
-    1. Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-    2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-    3. Neither the name of the copyright holders nor the
-    names of its contributors may be used to endorse or promote products
-    derived from this software without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    This file is part of the tinyusb stack.
-*/
-/**************************************************************************/
+/* 
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2019 Ha Thach (tinyusb.org)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * This file is part of the TinyUSB stack.
+ */
 
 #include "tusb_option.h"
 
@@ -189,10 +177,9 @@ static void xact_in_prepare(uint8_t epnum)
 //--------------------------------------------------------------------+
 // Controller API
 //--------------------------------------------------------------------+
-bool dcd_init (uint8_t rhport)
+void dcd_init (uint8_t rhport)
 {
   (void) rhport;
-  return true;
 }
 
 void dcd_int_enable(uint8_t rhport)
@@ -211,20 +198,37 @@ void dcd_set_address (uint8_t rhport, uint8_t dev_addr)
 {
   (void) rhport;
   (void) dev_addr;
-  // Set Address is automatically update by hw controller
+  // Set Address is automatically update by hw controller, nothing to do
+
+  // Enable usbevent for suspend and resume detection
+  // Since the bus signal D+/D- are stable now.
+
+  // Clear current pending first
+  NRF_USBD->EVENTCAUSE |= NRF_USBD->EVENTCAUSE;
+  NRF_USBD->EVENTS_USBEVENT = 0;
+
+  NRF_USBD->INTENSET = USBD_INTEN_USBEVENT_Msk;
 }
 
 void dcd_set_config (uint8_t rhport, uint8_t config_num)
 {
   (void) rhport;
   (void) config_num;
-  // Nothing to do
 }
 
-uint32_t dcd_get_frame_number(uint8_t rhport)
+void dcd_remote_wakeup(uint8_t rhport)
 {
   (void) rhport;
-  return NRF_USBD->FRAMECNTR;
+
+  // Bring controller out of low power mode
+  NRF_USBD->LOWPOWER = 0;
+
+  // Initiate RESUME signal
+  NRF_USBD->DPDMVALUE = USBD_DPDMVALUE_STATE_Resume;
+  NRF_USBD->TASKS_DPDMDRIVE = 1;
+
+  // TODO There is no USBEVENT Resume interrupt
+  // We may manually raise DCD_EVENT_RESUME event here
 }
 
 //--------------------------------------------------------------------+
@@ -297,17 +301,6 @@ bool dcd_edpt_xfer (uint8_t rhport, uint8_t ep_addr, uint8_t * buffer, uint16_t 
   return true;
 }
 
-bool dcd_edpt_stalled (uint8_t rhport, uint8_t ep_addr)
-{
-  (void) rhport;
-
-  // control is never got halted
-  if ( ep_addr == 0 ) return false;
-
-  uint8_t const epnum = tu_edpt_number(ep_addr);
-  return (tu_edpt_dir(ep_addr) == TUSB_DIR_IN ) ? NRF_USBD->HALTED.EPIN[epnum] : NRF_USBD->HALTED.EPOUT[epnum];
-}
-
 void dcd_edpt_stall (uint8_t rhport, uint8_t ep_addr)
 {
   (void) rhport;
@@ -329,7 +322,12 @@ void dcd_edpt_clear_stall (uint8_t rhport, uint8_t ep_addr)
 
   if ( tu_edpt_number(ep_addr)  )
   {
+    // clear stall
     NRF_USBD->EPSTALL = (USBD_EPSTALL_STALL_UnStall << USBD_EPSTALL_STALL_Pos) | ep_addr;
+
+    // reset data toggle to DATA0
+    NRF_USBD->DTOGGLE = (USBD_DTOGGLE_VALUE_Data0 << USBD_DTOGGLE_VALUE_Pos) | ep_addr;
+
     __ISB(); __DSB();
   }
 }
@@ -377,7 +375,7 @@ void USBD_IRQHandler(void)
 
   for(uint8_t i=0; i<USBD_INTEN_EPDATA_Pos+1; i++)
   {
-    if ( TU_BIT_TEST(inten, i) && regevt[i]  )
+    if ( tu_bit_test(inten, i) && regevt[i]  )
     {
       int_status |= TU_BIT(i);
 
@@ -387,11 +385,36 @@ void USBD_IRQHandler(void)
     }
   }
 
-  /*------------- Interrupt Processing -------------*/
   if ( int_status & USBD_INTEN_USBRESET_Msk )
   {
     bus_reset();
     dcd_event_bus_signal(0, DCD_EVENT_BUS_RESET, true);
+  }
+
+  if ( int_status & USBD_INTEN_SOF_Msk )
+  {
+    dcd_event_bus_signal(0, DCD_EVENT_SOF, true);
+  }
+
+  if ( int_status & USBD_INTEN_USBEVENT_Msk )
+  {
+    uint32_t const evt_cause = NRF_USBD->EVENTCAUSE & (USBD_EVENTCAUSE_SUSPEND_Msk | USBD_EVENTCAUSE_RESUME_Msk);
+    NRF_USBD->EVENTCAUSE = evt_cause; // clear interrupt
+
+    if ( evt_cause & USBD_EVENTCAUSE_SUSPEND_Msk )
+    {
+      dcd_event_bus_signal(0, DCD_EVENT_SUSPEND, true);
+
+      // Put controller into low power mode
+      NRF_USBD->LOWPOWER = 1;
+
+      // Leave HFXO disable to application, since it may be used by other
+    }
+
+    if ( evt_cause & USBD_EVENTCAUSE_RESUME_Msk  )
+    {
+      dcd_event_bus_signal(0, DCD_EVENT_RESUME , true);
+    }
   }
 
   if ( int_status & EDPT_END_ALL_MASK )
@@ -399,7 +422,7 @@ void USBD_IRQHandler(void)
     // DMA complete move data from SRAM -> Endpoint
     edpt_dma_end();
   }
-
+ 
   // Setup tokens are specific to the Control endpoint.
   if ( int_status & USBD_INTEN_EP0SETUP_Msk )
   {
@@ -454,7 +477,7 @@ void USBD_IRQHandler(void)
    */
   for(uint8_t epnum=0; epnum<8; epnum++)
   {
-    if ( TU_BIT_TEST(int_status, USBD_INTEN_ENDEPOUT0_Pos+epnum))
+    if ( tu_bit_test(int_status, USBD_INTEN_ENDEPOUT0_Pos+epnum))
     {
       xfer_td_t* xfer = get_td(epnum, TUSB_DIR_OUT);
       uint8_t const xact_len = NRF_USBD->EPOUT[epnum].AMOUNT;
@@ -471,7 +494,7 @@ void USBD_IRQHandler(void)
       {
         xfer->total_len = xfer->actual_len;
 
-        // BULK/INT OUT complete
+        // CBI OUT complete
         dcd_event_xfer_complete(0, epnum, xfer->actual_len, XFER_RESULT_SUCCESS, true);
       }
     }
@@ -494,7 +517,7 @@ void USBD_IRQHandler(void)
     // CBI In: Endpoint -> Host (transaction complete)
     for(uint8_t epnum=0; epnum<8; epnum++)
     {
-      if ( TU_BIT_TEST(data_status, epnum ) || ( epnum == 0 && is_control_in) )
+      if ( tu_bit_test(data_status, epnum ) || ( epnum == 0 && is_control_in) )
       {
         xfer_td_t* xfer = get_td(epnum, TUSB_DIR_IN);
 
@@ -506,7 +529,7 @@ void USBD_IRQHandler(void)
           xact_in_prepare(epnum);
         } else
         {
-          // Bulk/Int IN complete
+          // CBI IN complete
           dcd_event_xfer_complete(0, epnum | TUSB_DIR_IN_MASK, xfer->actual_len, XFER_RESULT_SUCCESS, true);
         }
       }
@@ -515,7 +538,7 @@ void USBD_IRQHandler(void)
     // CBI OUT: Host -> Endpoint
     for(uint8_t epnum=0; epnum<8; epnum++)
     {
-      if ( TU_BIT_TEST(data_status, 16+epnum ) || ( epnum == 0 && is_control_out) )
+      if ( tu_bit_test(data_status, 16+epnum ) || ( epnum == 0 && is_control_out) )
       {
         xfer_td_t* xfer = get_td(epnum, TUSB_DIR_OUT);
 
@@ -530,12 +553,6 @@ void USBD_IRQHandler(void)
         }
       }
     }
-  }
-
-  // SOF interrupt
-  if ( int_status & USBD_INTEN_SOF_Msk )
-  {
-    dcd_event_bus_signal(0, DCD_EVENT_SOF, true);
   }
 }
 

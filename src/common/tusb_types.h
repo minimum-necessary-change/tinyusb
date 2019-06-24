@@ -1,40 +1,28 @@
-/**************************************************************************/
-/*!
-    @file     tusb_types.h
-    @author   hathach (tinyusb.org)
-
-    @section LICENSE
-
-    Software License Agreement (BSD License)
-
-    Copyright (c) 2013, hathach (tinyusb.org)
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are met:
-    1. Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-    2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-    3. Neither the name of the copyright holders nor the
-    names of its contributors may be used to endorse or promote products
-    derived from this software without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION HOWEVER CAUSED AND
-    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    INCLUDING NEGLIGENCE OR OTHERWISE ARISING IN ANY WAY OUT OF THE USE OF THIS
-    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    This file is part of the tinyusb stack.
-*/
-/**************************************************************************/
+/* 
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2019 Ha Thach (tinyusb.org)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * This file is part of the TinyUSB stack.
+ */
 
 /** \ingroup group_usb_definitions
  *  \defgroup USBDef_Type USB Types
@@ -117,6 +105,13 @@ typedef enum
 
 typedef enum
 {
+  TUSB_REQ_FEATURE_EDPT_HALT = 0,
+  TUSB_REQ_FEATURE_REMOTE_WAKEUP = 1,
+  TUSB_REQ_FEATURE_TEST_MODE = 2
+}tusb_request_feature_selector_t;
+
+typedef enum
+{
   TUSB_REQ_TYPE_STANDARD = 0,
   TUSB_REQ_TYPE_CLASS,
   TUSB_REQ_TYPE_VENDOR
@@ -132,25 +127,23 @@ typedef enum
 
 typedef enum
 {
-  TUSB_CLASS_UNSPECIFIED          = 0    , ///< 0
-  TUSB_CLASS_AUDIO                = 1    , ///< 1
-  TUSB_CLASS_CDC                  = 2    , ///< 2
-  TUSB_CLASS_HID                  = 3    , ///< 3
-  TUSB_CLASS_RESERVED_4           = 4    , ///< 4
-  TUSB_CLASS_PHYSICAL             = 5    , ///< 5
-  TUSB_CLASS_IMAGE                = 6    , ///< 6
-  TUSB_CLASS_PRINTER              = 7    , ///< 7
-  TUSB_CLASS_MSC                  = 8    , ///< 8
-  TUSB_CLASS_HUB                  = 9    , ///< 9
-  TUSB_CLASS_CDC_DATA             = 10   , ///< 10
-  TUSB_CLASS_SMART_CARD           = 11   , ///< 11
-  TUSB_CLASS_RESERVED_12          = 12   , ///< 12
-  TUSB_CLASS_CONTENT_SECURITY     = 13   , ///< 13
-  TUSB_CLASS_VIDEO                = 14   , ///< 14
-  TUSB_CLASS_PERSONAL_HEALTHCARE  = 15   , ///< 15
-  TUSB_CLASS_AUDIO_VIDEO          = 16   , ///< 16
-
-  TUSB_CLASS_MAPPED_INDEX_START   = 17   , // TODO Map DIAGNOSTIC, WIRELESS_CONTROLLER, MISC, VENDOR_SPECIFIC to this to minimize the array
+  TUSB_CLASS_UNSPECIFIED          = 0    ,
+  TUSB_CLASS_AUDIO                = 1    ,
+  TUSB_CLASS_CDC                  = 2    ,
+  TUSB_CLASS_HID                  = 3    ,
+  TUSB_CLASS_RESERVED_4           = 4    ,
+  TUSB_CLASS_PHYSICAL             = 5    ,
+  TUSB_CLASS_IMAGE                = 6    ,
+  TUSB_CLASS_PRINTER              = 7    ,
+  TUSB_CLASS_MSC                  = 8    ,
+  TUSB_CLASS_HUB                  = 9    ,
+  TUSB_CLASS_CDC_DATA             = 10   ,
+  TUSB_CLASS_SMART_CARD           = 11   ,
+  TUSB_CLASS_RESERVED_12          = 12   ,
+  TUSB_CLASS_CONTENT_SECURITY     = 13   ,
+  TUSB_CLASS_VIDEO                = 14   ,
+  TUSB_CLASS_PERSONAL_HEALTHCARE  = 15   ,
+  TUSB_CLASS_AUDIO_VIDEO          = 16   ,
 
   TUSB_CLASS_DIAGNOSTIC           = 0xDC ,
   TUSB_CLASS_WIRELESS_CONTROLLER  = 0xE0 ,
@@ -171,13 +164,12 @@ typedef enum
 
 enum {
   TUSB_DESC_CONFIG_ATT_REMOTE_WAKEUP = TU_BIT(5),
-  TUSB_DESC_CONFIG_ATT_SELF_POWER    = TU_BIT(6),
-  TUSB_DESC_CONFIG_ATT_BUS_POWER     = TU_BIT(7)
+  TUSB_DESC_CONFIG_ATT_SELF_POWERED  = TU_BIT(6),
 };
 
 #define TUSB_DESC_CONFIG_POWER_MA(x)  ((x)/2)
 
-/// Device State
+/// Device State TODO remove
 typedef enum
 {
   TUSB_DEVICE_STATE_UNPLUG = 0  ,
@@ -192,7 +184,7 @@ typedef enum
   XFER_RESULT_STALLED,
 }xfer_result_t;
 
-enum
+enum // TODO remove
 {
   DESC_OFFSET_LEN  = 0,
   DESC_OFFSET_TYPE = 1
@@ -208,7 +200,7 @@ enum
 //--------------------------------------------------------------------+
 
 /// USB Standard Device Descriptor (section 9.6.1, table 9-8)
-typedef struct ATTR_PACKED
+typedef struct TU_ATTR_PACKED
 {
   uint8_t  bLength            ; ///< Size of this descriptor in bytes.
   uint8_t  bDescriptorType    ; ///< DEVICE Descriptor Type.
@@ -230,7 +222,7 @@ typedef struct ATTR_PACKED
 } tusb_desc_device_t;
 
 /// USB Standard Configuration Descriptor (section 9.6.1 table 9-10) */
-typedef struct ATTR_PACKED
+typedef struct TU_ATTR_PACKED
 {
   uint8_t  bLength             ; ///< Size of this descriptor in bytes
   uint8_t  bDescriptorType     ; ///< CONFIGURATION Descriptor Type
@@ -244,7 +236,7 @@ typedef struct ATTR_PACKED
 } tusb_desc_configuration_t;
 
 /// USB Standard Interface Descriptor (section 9.6.1 table 9-12)
-typedef struct ATTR_PACKED
+typedef struct TU_ATTR_PACKED
 {
   uint8_t  bLength            ; ///< Size of this descriptor in bytes
   uint8_t  bDescriptorType    ; ///< INTERFACE Descriptor Type
@@ -259,21 +251,21 @@ typedef struct ATTR_PACKED
 } tusb_desc_interface_t;
 
 /// USB Standard Endpoint Descriptor (section 9.6.1 table 9-13)
-typedef struct ATTR_PACKED
+typedef struct TU_ATTR_PACKED
 {
   uint8_t  bLength          ; ///< Size of this descriptor in bytes
   uint8_t  bDescriptorType  ; ///< ENDPOINT Descriptor Type
 
   uint8_t  bEndpointAddress ; ///< The address of the endpoint on the USB device described by this descriptor. The address is encoded as follows: \n Bit 3...0: The endpoint number \n Bit 6...4: Reserved, reset to zero \n Bit 7: Direction, ignored for control endpoints 0 = OUT endpoint 1 = IN endpoint.
 
-  struct ATTR_PACKED {
+  struct TU_ATTR_PACKED {
     uint8_t xfer  : 2;
     uint8_t sync  : 2;
     uint8_t usage : 2;
     uint8_t       : 2;
   } bmAttributes     ; ///< This field describes the endpoint's attributes when it is configured using the bConfigurationValue. \n Bits 1..0: Transfer Type \n- 00 = Control \n- 01 = Isochronous \n- 10 = Bulk \n- 11 = Interrupt \n If not an isochronous endpoint, bits 5..2 are reserved and must be set to zero. If isochronous, they are defined as follows: \n Bits 3..2: Synchronization Type \n- 00 = No Synchronization \n- 01 = Asynchronous \n- 10 = Adaptive \n- 11 = Synchronous \n Bits 5..4: Usage Type \n- 00 = Data endpoint \n- 01 = Feedback endpoint \n- 10 = Implicit feedback Data endpoint \n- 11 = Reserved \n Refer to Chapter 5 of USB 2.0 specification for more information. \n All other bits are reserved and must be reset to zero. Reserved bits must be ignored by the host.
 
-  struct ATTR_PACKED {
+  struct TU_ATTR_PACKED {
     uint16_t size           : 11; ///< Maximum packet size this endpoint is capable of sending or receiving when this configuration is selected. \n For isochronous endpoints, this value is used to reserve the bus time in the schedule, required for the per-(micro)frame data payloads. The pipe may, on an ongoing basis, actually use less bandwidth than that reserved. The device reports, if necessary, the actual bandwidth used via its normal, non-USB defined mechanisms. \n For all endpoints, bits 10..0 specify the maximum packet size (in bytes). \n For high-speed isochronous and interrupt endpoints: \n Bits 12..11 specify the number of additional transaction opportunities per microframe: \n- 00 = None (1 transaction per microframe) \n- 01 = 1 additional (2 per microframe) \n- 10 = 2 additional (3 per microframe) \n- 11 = Reserved \n Bits 15..13 are reserved and must be set to zero.
     uint16_t hs_period_mult : 2;
     uint16_t : 0;
@@ -283,7 +275,7 @@ typedef struct ATTR_PACKED
 } tusb_desc_endpoint_t;
 
 /// USB Other Speed Configuration Descriptor (section 9.6.1 table 9-11)
-typedef struct ATTR_PACKED
+typedef struct TU_ATTR_PACKED
 {
   uint8_t  bLength             ; ///< Size of descriptor
   uint8_t  bDescriptorType     ; ///< Other_speed_Configuration Type
@@ -297,7 +289,7 @@ typedef struct ATTR_PACKED
 } tusb_desc_other_speed_t;
 
 /// USB Device Qualifier Descriptor (section 9.6.1 table 9-9)
-typedef struct ATTR_PACKED
+typedef struct TU_ATTR_PACKED
 {
   uint8_t  bLength            ; ///< Size of descriptor
   uint8_t  bDescriptorType    ; ///< Device Qualifier Type
@@ -312,7 +304,7 @@ typedef struct ATTR_PACKED
 } tusb_desc_device_qualifier_t;
 
 /// USB Interface Association Descriptor (IAD ECN)
-typedef struct ATTR_PACKED
+typedef struct TU_ATTR_PACKED
 {
   uint8_t bLength           ; ///< Size of descriptor
   uint8_t bDescriptorType   ; ///< Other_speed_Configuration Type
@@ -328,13 +320,13 @@ typedef struct ATTR_PACKED
 } tusb_desc_interface_assoc_t;
 
 /// USB Header Descriptor
-typedef struct ATTR_PACKED
+typedef struct TU_ATTR_PACKED
 {
   uint8_t  bLength         ; ///< Size of this descriptor in bytes
   uint8_t  bDescriptorType ; ///< Descriptor Type
 } tusb_desc_header_t;
 
-typedef struct ATTR_PACKED
+typedef struct TU_ATTR_PACKED
 {
   uint8_t  bLength         ; ///< Size of this descriptor in bytes
   uint8_t  bDescriptorType ; ///< Descriptor Type
@@ -345,9 +337,9 @@ typedef struct ATTR_PACKED
 /*------------------------------------------------------------------*/
 /* Types
  *------------------------------------------------------------------*/
-typedef struct ATTR_PACKED{
+typedef struct TU_ATTR_PACKED{
   union {
-    struct ATTR_PACKED {
+    struct TU_ATTR_PACKED {
       uint8_t recipient :  5; ///< Recipient type tusb_request_recipient_t.
       uint8_t type      :  2; ///< Request type tusb_request_type_t.
       uint8_t direction :  1; ///< Direction type. tusb_dir_t
@@ -411,10 +403,10 @@ static inline uint8_t tu_desc_len(void const* desc)
 }
 
 // Length of the string descriptors in bytes with slen characters
-#define TUD_DESC_STRLEN(_slen)      (2*(_slen) + 2)
+#define TUD_DESC_STRLEN(_chr_count)      (2*(_chr_count) + 2)
 
 // Header of string descriptors with len + string type
-#define TUD_DESC_STR_HEADER(_slen)  ( (uint16_t) ( (TUSB_DESC_STRING << 8 ) | TUD_DESC_STRLEN(_slen)) )
+#define TUD_DESC_STR_HEADER(_chr_count)  ( (uint16_t) ( (TUSB_DESC_STRING << 8 ) | TUD_DESC_STRLEN(_chr_count)) )
 
 // Convert comma-separated string to descriptor unicode format
 #define TUD_DESC_STRCONV( ... )     (const uint16_t[]) { TUD_DESC_STR_HEADER(VA_ARGS_NUM_(__VA_ARGS__)), __VA_ARGS__ }

@@ -1,46 +1,32 @@
-/**************************************************************************/
-/*!
-    @file     cdc_device.c
-    @author   hathach (tinyusb.org)
-
-    @section LICENSE
-
-    Software License Agreement (BSD License)
-
-    Copyright (c) 2013, hathach (tinyusb.org)
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are met:
-    1. Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-    2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-    3. Neither the name of the copyright holders nor the
-    names of its contributors may be used to endorse or promote products
-    derived from this software without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    This file is part of the tinyusb stack.
-*/
-/**************************************************************************/
+/* 
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2019 Ha Thach (tinyusb.org)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * This file is part of the TinyUSB stack.
+ */
 
 #include "tusb_option.h"
 
 #if (TUSB_OPT_DEVICE_ENABLED && CFG_TUD_CDC)
-
-#define _TINY_USB_SOURCE_FILE_
 
 #include "cdc_device.h"
 #include "device/usbd_pvt.h"
@@ -87,13 +73,31 @@ typedef struct
 //--------------------------------------------------------------------+
 CFG_TUSB_MEM_SECTION static cdcd_interface_t _cdcd_itf[CFG_TUD_CDC];
 
+//bool pending_read_from_host; TODO remove
+static void _prep_out_transaction (uint8_t itf)
+{
+  cdcd_interface_t* p_cdc = &_cdcd_itf[itf];
+
+  // skip if previous transfer not complete
+  if ( usbd_edpt_busy(TUD_OPT_RHPORT, p_cdc->ep_out) ) return;
+  //if (pending_read_from_host) return;
+
+  // Prepare for incoming data but only allow what we can store in the ring buffer.
+  uint16_t max_read = tu_fifo_remaining(&p_cdc->rx_ff);
+  if ( max_read >= CFG_TUD_CDC_EPSIZE )
+  {
+    usbd_edpt_xfer(TUD_OPT_RHPORT, p_cdc->ep_out, p_cdc->epout_buf, CFG_TUD_CDC_EPSIZE);
+//    pending_read_from_host = true;
+  }
+}
+
 //--------------------------------------------------------------------+
 // APPLICATION API
 //--------------------------------------------------------------------+
 bool tud_cdc_n_connected(uint8_t itf)
 {
   // DTR (bit 0) active  is considered as connected
-  return TU_BIT_TEST(_cdcd_itf[itf].line_state, 0);
+  return tud_ready() && tu_bit_test(_cdcd_itf[itf].line_state, 0);
 }
 
 uint8_t tud_cdc_n_get_line_state (uint8_t itf)
@@ -120,26 +124,29 @@ uint32_t tud_cdc_n_available(uint8_t itf)
   return tu_fifo_count(&_cdcd_itf[itf].rx_ff);
 }
 
-char tud_cdc_n_read_char(uint8_t itf)
+signed char tud_cdc_n_read_char(uint8_t itf)
 {
-  char ch;
-  return tu_fifo_read(&_cdcd_itf[itf].rx_ff, &ch) ? ch : (-1);
+  signed char ch;
+  return tud_cdc_n_read(itf, &ch, 1) ? ch : (-1);
 }
 
 uint32_t tud_cdc_n_read(uint8_t itf, void* buffer, uint32_t bufsize)
 {
-  return tu_fifo_read_n(&_cdcd_itf[itf].rx_ff, buffer, bufsize);
+  uint32_t num_read = tu_fifo_read_n(&_cdcd_itf[itf].rx_ff, buffer, bufsize);
+  _prep_out_transaction(itf);
+  return num_read;
 }
 
-char tud_cdc_n_peek(uint8_t itf, int pos)
+signed char tud_cdc_n_peek(uint8_t itf, int pos)
 {
-  char ch;
+  signed char ch;
   return tu_fifo_peek_at(&_cdcd_itf[itf].rx_ff, pos, &ch) ? ch : (-1);
 }
 
 void tud_cdc_n_read_flush (uint8_t itf)
 {
   tu_fifo_clear(&_cdcd_itf[itf].rx_ff);
+  _prep_out_transaction(itf);
 }
 
 //--------------------------------------------------------------------+
@@ -174,13 +181,13 @@ uint32_t tud_cdc_n_write(uint8_t itf, void const* buffer, uint32_t bufsize)
 bool tud_cdc_n_write_flush (uint8_t itf)
 {
   cdcd_interface_t* p_cdc = &_cdcd_itf[itf];
-  TU_VERIFY( !dcd_edpt_busy(TUD_OPT_RHPORT, p_cdc->ep_in) ); // skip if previous transfer not complete
+  TU_VERIFY( !usbd_edpt_busy(TUD_OPT_RHPORT, p_cdc->ep_in) ); // skip if previous transfer not complete
 
   uint16_t count = tu_fifo_read_n(&_cdcd_itf[itf].tx_ff, p_cdc->epin_buf, CFG_TUD_CDC_EPSIZE);
   if ( count )
   {
     TU_VERIFY( tud_cdc_n_connected(itf) ); // fifo is empty if not connected
-    TU_ASSERT( dcd_edpt_xfer(TUD_OPT_RHPORT, p_cdc->ep_in, p_cdc->epin_buf, count) );
+    TU_ASSERT( usbd_edpt_xfer(TUD_OPT_RHPORT, p_cdc->ep_in, p_cdc->epin_buf, count) );
   }
 
   return true;
@@ -207,7 +214,7 @@ void cdcd_init(void)
     p_cdc->line_coding.data_bits = 8;
 
     // config fifo
-    tu_fifo_config(&p_cdc->rx_ff, p_cdc->rx_ff_buf, CFG_TUD_CDC_RX_BUFSIZE, 1, true);
+    tu_fifo_config(&p_cdc->rx_ff, p_cdc->rx_ff_buf, CFG_TUD_CDC_RX_BUFSIZE, 1, false);
     tu_fifo_config(&p_cdc->tx_ff, p_cdc->tx_ff_buf, CFG_TUD_CDC_TX_BUFSIZE, 1, false);
 
 #if CFG_FIFO_MUTEX
@@ -240,11 +247,12 @@ bool cdcd_open(uint8_t rhport, tusb_desc_interface_t const * itf_desc, uint16_t 
 
   // Find available interface
   cdcd_interface_t * p_cdc = NULL;
-  for(uint8_t i=0; i<CFG_TUD_CDC; i++)
+  uint8_t cdc_id;
+  for(cdc_id=0; cdc_id<CFG_TUD_CDC; cdc_id++)
   {
-    if ( _cdcd_itf[i].ep_in == 0 )
+    if ( _cdcd_itf[cdc_id].ep_in == 0 )
     {
-      p_cdc = &_cdcd_itf[i];
+      p_cdc = &_cdcd_itf[cdc_id];
       break;
     }
   }
@@ -279,18 +287,17 @@ bool cdcd_open(uint8_t rhport, tusb_desc_interface_t const * itf_desc, uint16_t 
        (TUSB_CLASS_CDC_DATA == ((tusb_desc_interface_t const *) p_desc)->bInterfaceClass) )
   {
     // next to endpoint descriptor
-    (*p_length) += tu_desc_len(p_desc);
     p_desc = tu_desc_next(p_desc);
 
-    // Open endpoint pair with usbd helper
-    tusb_desc_endpoint_t const *p_desc_ep = (tusb_desc_endpoint_t const *) p_desc;
-    TU_ASSERT( usbd_open_edpt_pair(rhport, p_desc_ep, TUSB_XFER_BULK, &p_cdc->ep_out, &p_cdc->ep_in) );
+    // Open endpoint pair
+    TU_ASSERT( usbd_open_edpt_pair(rhport, p_desc, 2, TUSB_XFER_BULK, &p_cdc->ep_out, &p_cdc->ep_in) );
 
-    (*p_length) += 2*sizeof(tusb_desc_endpoint_t);
+    (*p_length) += sizeof(tusb_desc_interface_t) + 2*sizeof(tusb_desc_endpoint_t);
   }
 
   // Prepare for incoming data
-  TU_ASSERT( dcd_edpt_xfer(rhport, p_cdc->ep_out, p_cdc->epout_buf, CFG_TUD_CDC_EPSIZE) );
+//  pending_read_from_host = false;
+  _prep_out_transaction(cdc_id);
 
   return true;
 }
@@ -349,7 +356,7 @@ bool cdcd_control_request(uint8_t rhport, tusb_control_request_t const * request
       usbd_control_status(rhport, request);
 
       // Invoke callback
-      if ( tud_cdc_line_state_cb) tud_cdc_line_state_cb(itf, TU_BIT_TEST(request->wValue, 0), TU_BIT_TEST(request->wValue, 1));
+      if ( tud_cdc_line_state_cb) tud_cdc_line_state_cb(itf, tu_bit_test(request->wValue, 0), tu_bit_test(request->wValue, 1));
     break;
 
     default: return false; // stall unsupported request
@@ -360,6 +367,7 @@ bool cdcd_control_request(uint8_t rhport, tusb_control_request_t const * request
 
 bool cdcd_xfer_cb(uint8_t rhport, uint8_t ep_addr, xfer_result_t result, uint32_t xferred_bytes)
 {
+  (void) rhport;
   (void) result;
 
   // TODO Support multiple interfaces
@@ -383,11 +391,12 @@ bool cdcd_xfer_cb(uint8_t rhport, uint8_t ep_addr, xfer_result_t result, uint32_
     // invoke receive callback (if there is still data)
     if (tud_cdc_rx_cb && tu_fifo_count(&p_cdc->rx_ff) ) tud_cdc_rx_cb(itf);
 
-    // prepare for incoming data
-    TU_ASSERT( dcd_edpt_xfer(rhport, p_cdc->ep_out, p_cdc->epout_buf, CFG_TUD_CDC_EPSIZE) );
+    // prepare for OUT transaction
+//    pending_read_from_host = false;
+    _prep_out_transaction(itf);
   }
 
-  // nothing to do with in and notif endpoint
+  // nothing to do with in and notif endpoint for now
 
   return true;
 }

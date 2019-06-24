@@ -1,65 +1,51 @@
-/**************************************************************************/
-/*!
-    @file     board_lpcexpresso1347.c
-    @author   hathach (tinyusb.org)
+/* 
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2019 Ha Thach (tinyusb.org)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * This file is part of the TinyUSB stack.
+ */
 
-    @section LICENSE
-
-    Software License Agreement (BSD License)
-
-    Copyright (c) 2013, hathach (tinyusb.org)
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are met:
-    1. Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-    2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-    3. Neither the name of the copyright holders nor the
-    names of its contributors may be used to endorse or promote products
-    derived from this software without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION HOWEVER CAUSED AND
-    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    INCLUDING NEGLIGENCE OR OTHERWISE ARISING IN ANY WAY OUT OF THE USE OF THIS
-    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    This file is part of the tinyusb stack.
-*/
-/**************************************************************************/
-
-#ifdef BOARD_LPCXPRESSO1347
-
+#include "chip.h"
 #include "../board.h"
 
-#define LED_PORT    0
-#define LED_PIN     7
+#define LED_PORT      0
+#define LED_PIN       7
 
-static const struct {
-  uint8_t port;
-  uint8_t pin;
-} buttons[] =
-{
-    {1, 22 }, // Joystick up
-    {1, 20 }, // Joystick down
-    {1, 23 }, // Joystick left
-    {1, 21 }, // Joystick right
-    {1, 19 }, // Joystick press
-    {0, 1  }, // SW3
-//    {1, 4  }, // SW4 (require to remove J28)
-};
+// Joytick Down if connected to LPCXpresso Base board
+#define BUTTON_PORT   1
+#define BUTTON_PIN    20
 
-enum {
-  BOARD_BUTTON_COUNT = sizeof(buttons) / sizeof(buttons[0])
-};
+//static const struct {
+//  uint8_t port;
+//  uint8_t pin;
+//} buttons[] =
+//{
+//    {1, 22 }, // Joystick up
+//    {1, 20 }, // Joystick down
+//    {1, 23 }, // Joystick left
+//    {1, 21 }, // Joystick right
+//    {1, 19 }, // Joystick press
+//    {0, 1  }, // SW3
+//};
 
 /* System oscillator rate and RTC oscillator rate */
 const uint32_t OscRateIn = 12000000;
@@ -95,85 +81,63 @@ void board_init(void)
   SystemCoreClockUpdate();
 
 #if CFG_TUSB_OS == OPT_OS_NONE
-  SysTick_Config(SystemCoreClock / BOARD_TICKS_HZ); // 1 msec tick timer
+  // 1ms tick timer
+  SysTick_Config(SystemCoreClock / 1000);
+#elif CFG_TUSB_OS == OPT_OS_FREERTOS
+  // If freeRTOS is used, IRQ priority is limit by max syscall ( smaller is higher )
+  NVIC_SetPriority(USB0_IRQn, configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY );
 #endif
 
   Chip_GPIO_Init(LPC_GPIO_PORT);
 
-  //------------- LED -------------//
+  // LED
   Chip_GPIO_SetPinDIROutput(LPC_GPIO_PORT, LED_PORT, LED_PIN);
 
-  //------------- BUTTON -------------//
-//  for(uint8_t i=0; i<BOARD_BUTTON_COUNT; i++) GPIOSetDir(buttons[i].port, TU_BIT(buttons[i].pin), 0);
+  // Button
+  Chip_GPIO_SetPinDIRInput(LPC_GPIO_PORT, BUTTON_PORT, BUTTON_PIN);
 
-  //------------- UART -------------//
-  //UARTInit(CFG_UART_BAUDRATE);
-
-  // USB
-  Chip_USB_Init(); // Setup PLL clock, and power
+  // USB: Setup PLL clock, and power
+  Chip_USB_Init();
 }
 
-/*------------------------------------------------------------------*/
-/* TUSB HAL MILLISECOND
- *------------------------------------------------------------------*/
+//--------------------------------------------------------------------+
+// Board porting API
+//--------------------------------------------------------------------+
+
 #if CFG_TUSB_OS == OPT_OS_NONE
-
 volatile uint32_t system_ticks = 0;
-
 void SysTick_Handler (void)
 {
   system_ticks++;
 }
 
-uint32_t tusb_hal_millis(void)
+uint32_t board_millis(void)
 {
-  return board_tick2ms(system_ticks);
+  return system_ticks;
 }
-
 #endif
 
-//--------------------------------------------------------------------+
-// LEDS
-//--------------------------------------------------------------------+
-void board_led_control(bool state)
+void board_led_write(bool state)
 {
   Chip_GPIO_SetPinState(LPC_GPIO_PORT, LED_PORT, LED_PIN, state);
 }
 
-
-//--------------------------------------------------------------------+
-// BUTTONS
-//--------------------------------------------------------------------+
-#if 0
-static bool button_read(uint8_t id)
+uint32_t board_button_read(void)
 {
-  (void) id;
-//  return !GPIOGetPinValue(buttons[id].port, buttons[id].pin); // button is active low
-  return 0;
-}
-#endif
-
-uint32_t board_buttons(void)
-{
-  uint32_t result = 0;
-
-//  for(uint8_t i=0; i<BOARD_BUTTON_COUNT; i++) result |= (button_read(i) ? TU_BIT(i) : 0);
-
-  return result;
+  // active low
+  return Chip_GPIO_GetPinState(LPC_GPIO_PORT, BUTTON_PORT, BUTTON_PIN) ? 0 : 1;
 }
 
-//--------------------------------------------------------------------+
-// UART
-//--------------------------------------------------------------------+
-void board_uart_putchar(uint8_t c)
+int board_uart_read(uint8_t* buf, int len)
 {
-  (void) c;
-//  UARTSend(&c, 1);
-}
-
-uint8_t  board_uart_getchar(void)
-{
+  (void) buf;
+  (void) len;
   return 0;
 }
 
-#endif
+int board_uart_write(void const * buf, int len)
+{
+  (void) buf;
+  (void) len;
+  return 0;
+}

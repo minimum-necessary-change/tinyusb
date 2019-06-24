@@ -1,40 +1,28 @@
-/**************************************************************************/
-/*!
-    @file     ohci.h
-    @author   hathach (tinyusb.org)
-
-    @section LICENSE
-
-    Software License Agreement (BSD License)
-
-    Copyright (c) 2013, hathach (tinyusb.org)
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are met:
-    1. Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-    2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-    3. Neither the name of the copyright holders nor the
-    names of its contributors may be used to endorse or promote products
-    derived from this software without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    This file is part of the tinyusb stack.
-*/
-/**************************************************************************/
+/* 
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2019 Ha Thach (tinyusb.org)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * This file is part of the TinyUSB stack.
+ */
 
 /** \ingroup Group_HCD
  * @{
@@ -77,7 +65,7 @@ typedef struct {
   volatile uint16_t frame_pad;
   volatile uint32_t done_head;
   uint8_t reserved[116+4];  // TODO try to make use of this area if possible, extra 4 byte to make the whole struct size = 256
-}ohci_hcca_t; // ATTR_ALIGNED(256)
+}ohci_hcca_t; // TU_ATTR_ALIGNED(256)
 
 TU_VERIFY_STATIC( sizeof(ohci_hcca_t) == 256, "size is not correct" );
 
@@ -88,7 +76,7 @@ typedef struct {
 }ohci_td_item_t;
 
 
-typedef struct ATTR_ALIGNED(16)
+typedef struct TU_ATTR_ALIGNED(16)
 {
 	// Word 0
 	uint32_t used                    : 1;
@@ -114,7 +102,7 @@ typedef struct ATTR_ALIGNED(16)
 
 TU_VERIFY_STATIC( sizeof(ohci_gtd_t) == 16, "size is not correct" );
 
-typedef struct ATTR_ALIGNED(16)
+typedef struct TU_ATTR_ALIGNED(16)
 {
   // Word 0
 	uint32_t dev_addr          : 7;
@@ -149,7 +137,7 @@ typedef struct ATTR_ALIGNED(16)
 
 TU_VERIFY_STATIC( sizeof(ohci_ed_t) == 16, "size is not correct" );
 
-typedef struct ATTR_ALIGNED(32)
+typedef struct TU_ATTR_ALIGNED(32)
 {
 	/*---------- Word 1 ----------*/
   uint32_t starting_frame          : 16;
@@ -175,7 +163,7 @@ typedef struct ATTR_ALIGNED(32)
 TU_VERIFY_STATIC( sizeof(ochi_itd_t) == 32, "size is not correct" );
 
 // structure with member alignment required from large to small
-typedef struct ATTR_ALIGNED(256)
+typedef struct TU_ATTR_ALIGNED(256)
 {
   ohci_hcca_t hcca;
 

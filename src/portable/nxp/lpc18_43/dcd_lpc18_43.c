@@ -1,40 +1,28 @@
-/**************************************************************************/
-/*!
-    @file     dcd_lpc43xx.c
-    @author   hathach (tinyusb.org)
-
-    @section LICENSE
-
-    Software License Agreement (BSD License)
-
-    Copyright (c) 2013, hathach (tinyusb.org)
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are met:
-    1. Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-    2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-    3. Neither the name of the copyright holders nor the
-    names of its contributors may be used to endorse or promote products
-    derived from this software without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    This file is part of the tinyusb stack.
-*/
-/**************************************************************************/
+/* 
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2019 Ha Thach (tinyusb.org)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * This file is part of the TinyUSB stack.
+ */
 
 #include "tusb_option.h"
 
@@ -44,8 +32,6 @@
 // INCLUDE
 //--------------------------------------------------------------------+
 #include "common/tusb_common.h"
-#include "tusb_hal.h"
-
 #include "device/dcd.h"
 #include "dcd_lpc18_43.h"
 
@@ -60,16 +46,16 @@
 
 typedef struct {
   // Must be at 2K alignment
-  dcd_qhd_t qhd[QHD_MAX] ATTR_ALIGNED(64);
-  dcd_qtd_t qtd[QHD_MAX] ATTR_ALIGNED(32);
+  dcd_qhd_t qhd[QHD_MAX] TU_ATTR_ALIGNED(64);
+  dcd_qtd_t qtd[QHD_MAX] TU_ATTR_ALIGNED(32);
 }dcd_data_t;
 
 #if (CFG_TUSB_RHPORT0_MODE & OPT_MODE_DEVICE)
-CFG_TUSB_MEM_SECTION ATTR_ALIGNED(2048) static dcd_data_t dcd_data0;
+CFG_TUSB_MEM_SECTION TU_ATTR_ALIGNED(2048) static dcd_data_t dcd_data0;
 #endif
 
 #if (CFG_TUSB_RHPORT1_MODE & OPT_MODE_DEVICE)
-CFG_TUSB_MEM_SECTION ATTR_ALIGNED(2048) static dcd_data_t dcd_data1;
+CFG_TUSB_MEM_SECTION TU_ATTR_ALIGNED(2048) static dcd_data_t dcd_data1;
 #endif
 
 static LPC_USBHS_T * const LPC_USB[2] = { LPC_USB0, LPC_USB1 };
@@ -135,7 +121,7 @@ static void bus_reset(uint8_t rhport)
 	p_dcd->qhd[0].int_on_setup = 1; // OUT only
 }
 
-bool dcd_init(uint8_t rhport)
+void dcd_init(uint8_t rhport)
 {
   LPC_USBHS_T* const lpc_usb = LPC_USB[rhport];
   dcd_data_t* p_dcd = dcd_data_ptr[rhport];
@@ -148,8 +134,6 @@ bool dcd_init(uint8_t rhport)
 
   lpc_usb->USBCMD_D &= ~0x00FF0000; // Interrupt Threshold Interval = 0
   lpc_usb->USBCMD_D |= TU_BIT(0); // connect
-
-  return true;
 }
 
 void dcd_int_enable(uint8_t rhport)
@@ -164,6 +148,9 @@ void dcd_int_disable(uint8_t rhport)
 
 void dcd_set_address(uint8_t rhport, uint8_t dev_addr)
 {
+  // Response with status first before changing device address
+  dcd_edpt_xfer(rhport, tu_edpt_addr(0, TUSB_DIR_IN), NULL, 0);
+
   LPC_USB[rhport]->DEVICEADDR = (dev_addr << 25) | TU_BIT(24);
 }
 
@@ -174,9 +161,9 @@ void dcd_set_config(uint8_t rhport, uint8_t config_num)
   // nothing to do
 }
 
-uint32_t dcd_get_frame_number(uint8_t rhport)
+void dcd_remote_wakeup(uint8_t rhport)
 {
-  return LPC_USB[rhport]->FRINDEX_D >> 3;
+  (void) rhport;
 }
 
 //--------------------------------------------------------------------+
@@ -214,22 +201,7 @@ void dcd_edpt_stall(uint8_t rhport, uint8_t ep_addr)
   uint8_t const epnum  = tu_edpt_number(ep_addr);
   uint8_t const dir    = tu_edpt_dir(ep_addr);
 
-  if ( epnum == 0)
-  {
-    // Stall both Control IN and OUT
-    LPC_USB[rhport]->ENDPTCTRL[epnum] |= ( (ENDPTCTRL_MASK_STALL << 16) || (ENDPTCTRL_MASK_STALL << 0) );
-  }else
-  {
-    LPC_USB[rhport]->ENDPTCTRL[epnum] |= ENDPTCTRL_MASK_STALL << (dir ? 16 : 0);
-  }
-}
-
-bool dcd_edpt_stalled (uint8_t rhport, uint8_t ep_addr)
-{
-  uint8_t const epnum  = tu_edpt_number(ep_addr);
-  uint8_t const dir    = tu_edpt_dir(ep_addr);
-
-  return LPC_USB[rhport]->ENDPTCTRL[epnum] & (ENDPTCTRL_MASK_STALL << (dir ? 16 : 0));
+  LPC_USB[rhport]->ENDPTCTRL[epnum] |= ENDPTCTRL_MASK_STALL << (dir ? 16 : 0);
 }
 
 void dcd_edpt_clear_stall(uint8_t rhport, uint8_t ep_addr)
@@ -334,7 +306,7 @@ void hal_dcd_isr(uint8_t rhport)
       // Note: Host may delay more than 3 ms before and/or after bus reset before doing enumeration.
       if ((lpc_usb->DEVICEADDR >> 25) & 0x0f)
       {
-        dcd_event_bus_signal(rhport, DCD_EVENT_SUSPENDED, true);
+        dcd_event_bus_signal(rhport, DCD_EVENT_SUSPEND, true);
       }
     }
   }
@@ -369,7 +341,7 @@ void hal_dcd_isr(uint8_t rhport)
     {
       for(uint8_t ep_idx = 0; ep_idx < QHD_MAX; ep_idx++)
       {
-        if ( TU_BIT_TEST(edpt_complete, ep_idx2bit(ep_idx)) )
+        if ( tu_bit_test(edpt_complete, ep_idx2bit(ep_idx)) )
         {
           // 23.10.12.3 Failed QTD also get ENDPTCOMPLETE set
           dcd_qtd_t * p_qtd = &dcd_data_ptr[rhport]->qtd[ep_idx];

@@ -1,67 +1,62 @@
-/**************************************************************************/
-/*!
- @file    board_mcb1800.c
- @author  hathach (tinyusb.org)
+/* 
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2019 Ha Thach (tinyusb.org)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * This file is part of the TinyUSB stack.
+ */
 
- @section LICENSE
-
- Software License Agreement (BSD License)
-
- Copyright (c) 2018, hathach (tinyusb.org)
- All rights reserved.
-
- Redistribution and use in source and binary forms, with or without
- modification, are permitted provided that the following conditions are met:
- 1. Redistributions of source code must retain the above copyright
- notice, this list of conditions and the following disclaimer.
- 2. Redistributions in binary form must reproduce the above copyright
- notice, this list of conditions and the following disclaimer in the
- documentation and/or other materials provided with the distribution.
- 3. Neither the name of the copyright holders nor the
- names of its contributors may be used to endorse or promote products
- derived from this software without specific prior written permission.
-
- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
- EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
- DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
- This file is part of the tinyusb stack.
-*/
-/**************************************************************************/
-
-#ifdef BOARD_MCB1800
-
+#include "chip.h"
 #include "../board.h"
-#include "tusb.h"
 
+// PD_10
 #define LED_PORT  6
 #define LED_PIN   24
+
+// P4_0
+#define BUTTON_PORT   2
+#define BUTTON_PIN    0
+
 
 //--------------------------------------------------------------------+
 // MACRO TYPEDEF CONSTANT ENUM DECLARATION
 //--------------------------------------------------------------------+
 /* System configuration variables used by chip driver */
-const uint32_t ExtRateIn = 0;
 const uint32_t OscRateIn = 12000000;
+const uint32_t ExtRateIn = 0;
 
 static const PINMUX_GRP_T pinmuxing[] =
 {
-	/* Board LEDs */
+	// LEDs
 	{0xD, 10, (SCU_MODE_INBUFF_EN | SCU_MODE_INACT | SCU_MODE_FUNC4)},
-	{0xD, 11, (SCU_MODE_INBUFF_EN | SCU_MODE_INACT | SCU_MODE_FUNC4)},
-	{0xD, 12, (SCU_MODE_INBUFF_EN | SCU_MODE_INACT | SCU_MODE_FUNC4)},
-	{0xD, 13, (SCU_MODE_INBUFF_EN | SCU_MODE_INACT | SCU_MODE_FUNC4)},
-	{0xD, 14, (SCU_MODE_INBUFF_EN | SCU_MODE_INACT | SCU_MODE_FUNC4)},
-	{0x9, 0,  (SCU_MODE_INBUFF_EN | SCU_MODE_INACT | SCU_MODE_FUNC0)},
-	{0x9, 1,  (SCU_MODE_INBUFF_EN | SCU_MODE_INACT | SCU_MODE_FUNC0)},
-	{0x9, 2,  (SCU_MODE_INBUFF_EN | SCU_MODE_INACT | SCU_MODE_FUNC0)},
+	{0xD, 11, (SCU_MODE_INBUFF_EN | SCU_MODE_INACT | SCU_MODE_FUNC4 | SCU_MODE_PULLDOWN)},
+	{0xD, 12, (SCU_MODE_INBUFF_EN | SCU_MODE_INACT | SCU_MODE_FUNC4 | SCU_MODE_PULLDOWN)},
+	{0xD, 13, (SCU_MODE_INBUFF_EN | SCU_MODE_INACT | SCU_MODE_FUNC4 | SCU_MODE_PULLDOWN)},
+	{0xD, 14, (SCU_MODE_INBUFF_EN | SCU_MODE_INACT | SCU_MODE_FUNC4 | SCU_MODE_PULLDOWN)},
+	{0x9, 0,  (SCU_MODE_INBUFF_EN | SCU_MODE_INACT | SCU_MODE_FUNC0 | SCU_MODE_PULLDOWN)},
+	{0x9, 1,  (SCU_MODE_INBUFF_EN | SCU_MODE_INACT | SCU_MODE_FUNC0 | SCU_MODE_PULLDOWN)},
+	{0x9, 2,  (SCU_MODE_INBUFF_EN | SCU_MODE_INACT | SCU_MODE_FUNC0 | SCU_MODE_PULLDOWN)},
+
+	// Button
+	{0x4, 0,  (SCU_MODE_INBUFF_EN | SCU_MODE_INACT | SCU_MODE_FUNC0 | SCU_MODE_PULLUP)},
 
 	/*  I2S  */
 	{0x3, 0,  (SCU_PINIO_FAST | SCU_MODE_FUNC2)},
@@ -81,21 +76,17 @@ static const PINMUX_GRP_T pinclockmuxing[] =
 	{0, 3,  (SCU_MODE_INACT | SCU_MODE_INBUFF_EN | SCU_MODE_ZIF_DIS | SCU_MODE_HIGHSPEEDSLEW_EN | SCU_MODE_FUNC0)},
 };
 
-
-/*------------------------------------------------------------------*/
-/* BOARD API
- *------------------------------------------------------------------*/
 // Invoked by startup code
 void SystemInit(void)
 {
-	/* Setup system level pin muxing */
-	Chip_SCU_SetPinMuxing(pinmuxing, sizeof(pinmuxing) / sizeof(PINMUX_GRP_T));
+  /* Setup system level pin muxing */
+  Chip_SCU_SetPinMuxing(pinmuxing, sizeof(pinmuxing) / sizeof(PINMUX_GRP_T));
 
-	/* Clock pins only, group field not used */
-	for (int i = 0; i < (sizeof(pinclockmuxing) / sizeof(pinclockmuxing[0])); i++)
-	{
-		Chip_SCU_ClockPinMuxSet(pinclockmuxing[i].pinnum, pinclockmuxing[i].modefunc);
-	}
+  /* Clock pins only, group field not used */
+  for (uint32_t i = 0; i < (sizeof(pinclockmuxing) / sizeof(pinclockmuxing[0])); i++)
+  {
+    Chip_SCU_ClockPinMuxSet(pinclockmuxing[i].pinnum, pinclockmuxing[i].modefunc);
+  }
 
   Chip_SetupXtalClocking();
 }
@@ -105,30 +96,22 @@ void board_init(void)
   SystemCoreClockUpdate();
 
 #if CFG_TUSB_OS == OPT_OS_NONE
-  SysTick_Config( SystemCoreClock / BOARD_TICKS_HZ );
+  // 1ms tick timer
+  SysTick_Config(SystemCoreClock / 1000);
+#elif CFG_TUSB_OS == OPT_OS_FREERTOS
+  // If freeRTOS is used, IRQ priority is limit by max syscall ( smaller is higher )
+  //NVIC_SetPriority(USB0_IRQn, configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY );
 #endif
 
   Chip_GPIO_Init(LPC_GPIO_PORT);
 
-  //------------- LED -------------//
-  /* Port and bit mapping for LEDs on GPIOs */
-  const uint8_t ledports[] = {6, 6, 6, 6, 6, 4, 4, 4};
-  const uint8_t ledbits[] = {24, 25, 26, 27, 28, 12, 13, 14};
+  // LED
+  Chip_GPIO_SetPinDIROutput(LPC_GPIO_PORT, LED_PORT, LED_PIN);
 
-  for (int i = 0; i < (sizeof(ledports) / sizeof(ledports[0])); i++) 
-  {
-    Chip_GPIO_SetPinDIROutput(LPC_GPIO_PORT, ledports[i], ledbits[i]);
-    Chip_GPIO_SetPinState(LPC_GPIO_PORT, LED_PORT, LED_PIN, false);
-  }
+  // Button
+  Chip_GPIO_SetPinDIRInput(LPC_GPIO_PORT, BUTTON_PORT, BUTTON_PIN);
 
 #if 0
-  //------------- BUTTON -------------//
-  for(uint8_t i=0; i<BOARD_BUTTON_COUNT; i++)
-  {
-    scu_pinmux(buttons[i].mux_port, buttons[i].mux_pin, GPIO_NOPULL, FUNC0);
-    GPIO_SetDir(buttons[i].gpio_port, TU_BIT(buttons[i].gpio_pin), 0);
-  }
-
   //------------- UART -------------//
   scu_pinmux(BOARD_UART_PIN_PORT, BOARD_UART_PIN_TX, MD_PDN, FUNC1);
   scu_pinmux(BOARD_UART_PIN_PORT, BOARD_UART_PIN_RX, MD_PLN | MD_EZI | MD_ZI, FUNC1);
@@ -190,56 +173,46 @@ void board_init(void)
 #endif
 }
 
-//------------- LED -------------//
-void board_led_control(bool state)
+//--------------------------------------------------------------------+
+// Board porting API
+//--------------------------------------------------------------------+
+
+void board_led_write(bool state)
 {
   Chip_GPIO_SetPinState(LPC_GPIO_PORT, LED_PORT, LED_PIN, state);
 }
 
-//------------- Buttons -------------//
-static bool button_read(uint8_t id)
+uint32_t board_button_read(void)
 {
-//  return !TU_BIT_TEST( GPIO_ReadValue(buttons[id].gpio_port), buttons[id].gpio_pin ); // button is active low
+  // active low
+  return Chip_GPIO_GetPinState(LPC_GPIO_PORT, BUTTON_PORT, BUTTON_PIN) ? 0 : 1;
 }
 
-uint32_t board_buttons(void)
-{
-  uint32_t result = 0;
-
-//  for(uint8_t i=0; i<BOARD_BUTTON_COUNT; i++) result |= (button_read(i) ? TU_BIT(i) : 0);
-
-  return result;
-}
-
-
-//------------- UART -------------//
-uint8_t  board_uart_getchar(void)
+int board_uart_read(uint8_t* buf, int len)
 {
   //return UART_ReceiveByte(BOARD_UART_PORT);
+  (void) buf;
+  (void) len;
+  return 0;
 }
-void board_uart_putchar(uint8_t c)
+
+int board_uart_write(void const * buf, int len)
 {
   //UART_Send(BOARD_UART_PORT, &c, 1, BLOCKING);
+  (void) buf;
+  (void) len;
+  return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* TUSB HAL MILLISECOND
- *------------------------------------------------------------------*/
 #if CFG_TUSB_OS == OPT_OS_NONE
-
 volatile uint32_t system_ticks = 0;
-
 void SysTick_Handler (void)
 {
   system_ticks++;
 }
 
-uint32_t tusb_hal_millis(void)
+uint32_t board_millis(void)
 {
-  return board_tick2ms(system_ticks);
+  return system_ticks;
 }
-
 #endif
-
-#endif
-

@@ -1,40 +1,28 @@
-/**************************************************************************/
-/*!
-    @file     main.c
-    @author   hathach (tinyusb.org)
-
-    @section LICENSE
-
-    Software License Agreement (BSD License)
-
-    Copyright (c) 2013, hathach (tinyusb.org)
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are met:
-    1. Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-    2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-    3. Neither the name of the copyright holders nor the
-    names of its contributors may be used to endorse or promote products
-    derived from this software without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION HOWEVER CAUSED AND
-    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    INCLUDING NEGLIGENCE OR OTHERWISE ARISING IN ANY WAY OUT OF THE USE OF THIS
-    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    This file is part of the tinyusb stack.
-*/
-/**************************************************************************/
+/* 
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2019 Ha Thach (tinyusb.org)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * This file is part of the TinyUSB stack.
+ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -49,8 +37,8 @@
 void print_greeting(void);
 void led_blinking_task(void);
 
-extern void virtual_com_task(void);
-extern void usb_hid_task(void);
+extern void cdc_task(void);
+extern void hid_task(void);
 
 /*------------- MAIN -------------*/
 int main(void)
@@ -68,11 +56,11 @@ int main(void)
     led_blinking_task();
 
 #if CFG_TUH_CDC
-    virtual_com_task();
+    cdc_task();
 #endif
 
 #if CFG_TUD_HID
-    usb_hid_task();
+    hid_task();
 #endif
   }
 
@@ -112,7 +100,7 @@ void tuh_cdc_xfer_isr(uint8_t dev_addr, xfer_result_t event, cdc_pipeid_t pipe_i
   tuh_cdc_receive(dev_addr, serial_in_buffer, sizeof(serial_in_buffer), true); // waiting for next data
 }
 
-void virtual_com_task(void)
+void cdc_task(void)
 {
 
 }
@@ -123,7 +111,7 @@ void virtual_com_task(void)
 // USB HID
 //--------------------------------------------------------------------+
 #if CFG_TUH_HID_KEYBOARD
-void usb_hid_task(void)
+void hid_task(void)
 {
 
 }
@@ -176,13 +164,16 @@ void tuh_hid_mouse_isr(uint8_t dev_addr, xfer_result_t event)
 //--------------------------------------------------------------------+
 void led_blinking_task(void)
 {
-  static tu_timeout_t tm = { .start = 0, .interval = 1000 }; // Blink every 1000 ms
+  const uint32_t interval_ms = 1000;
+  static uint32_t start_ms = 0;
+
   static bool led_state = false;
 
-  if ( !tu_timeout_expired(&tm) ) return; // not enough time
-  tu_timeout_reset(&tm);
+  // Blink every 1000 ms
+  if ( board_millis() - start_ms < interval_ms) return; // not enough time
+  start_ms += interval_ms;
 
-  board_led_control(led_state);
+  board_led_write(led_state);
   led_state = 1 - led_state; // toggle
 }
 

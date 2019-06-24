@@ -1,40 +1,28 @@
-/**************************************************************************/
-/*!
-    @file     cdc.h
-    @author   hathach (tinyusb.org)
-
-    @section LICENSE
-
-    Software License Agreement (BSD License)
-
-    Copyright (c) 2013, hathach (tinyusb.org)
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are met:
-    1. Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-    2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-    3. Neither the name of the copyright holders nor the
-    names of its contributors may be used to endorse or promote products
-    derived from this software without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION HOWEVER CAUSED AND
-    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    INCLUDING NEGLIGENCE OR OTHERWISE ARISING IN ANY WAY OUT OF THE USE OF THIS
-    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    This file is part of the tinyusb stack.
-*/
-/**************************************************************************/
+/* 
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2019 Ha Thach (tinyusb.org)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * This file is part of the TinyUSB stack.
+ */
 
 /** \ingroup group_class
  *  \defgroup ClassDriver_CDC Communication Device Class (CDC)
@@ -224,7 +212,7 @@ typedef enum
 // FUNCTIONAL DESCRIPTOR (COMMUNICATION INTERFACE)
 //--------------------------------------------------------------------+
 /// Header Functional Descriptor (Communication Interface)
-typedef struct ATTR_PACKED
+typedef struct TU_ATTR_PACKED
 {
   uint8_t bLength            ; ///< Size of this descriptor in bytes.
   uint8_t bDescriptorType    ; ///< Descriptor Type, must be Class-Specific
@@ -233,7 +221,7 @@ typedef struct ATTR_PACKED
 }cdc_desc_func_header_t;
 
 /// Union Functional Descriptor (Communication Interface)
-typedef struct ATTR_PACKED
+typedef struct TU_ATTR_PACKED
 {
   uint8_t bLength                  ; ///< Size of this descriptor in bytes.
   uint8_t bDescriptorType          ; ///< Descriptor Type, must be Class-Specific
@@ -243,7 +231,7 @@ typedef struct ATTR_PACKED
 }cdc_desc_func_union_t;
 
 #define cdc_desc_func_union_n_t(no_slave)\
- struct ATTR_PACKED { \
+ struct TU_ATTR_PACKED { \
   uint8_t bLength                         ;\
   uint8_t bDescriptorType                 ;\
   uint8_t bDescriptorSubType              ;\
@@ -252,7 +240,7 @@ typedef struct ATTR_PACKED
 }
 
 /// Country Selection Functional Descriptor (Communication Interface)
-typedef struct ATTR_PACKED
+typedef struct TU_ATTR_PACKED
 {
   uint8_t bLength             ; ///< Size of this descriptor in bytes.
   uint8_t bDescriptorType     ; ///< Descriptor Type, must be Class-Specific
@@ -262,7 +250,7 @@ typedef struct ATTR_PACKED
 }cdc_desc_func_country_selection_t;
 
 #define cdc_desc_func_country_selection_n_t(no_country) \
-  struct ATTR_PACKED {\
+  struct TU_ATTR_PACKED {\
   uint8_t bLength                   ;\
   uint8_t bDescriptorType           ;\
   uint8_t bDescriptorSubType        ;\
@@ -276,7 +264,7 @@ typedef struct ATTR_PACKED
 
 /// \brief Call Management Functional Descriptor
 /// \details This functional descriptor describes the processing of calls for the Communications Class interface.
-typedef struct ATTR_PACKED
+typedef struct TU_ATTR_PACKED
 {
   uint8_t bLength            ; ///< Size of this descriptor in bytes.
   uint8_t bDescriptorType    ; ///< Descriptor Type, must be Class-Specific
@@ -292,7 +280,7 @@ typedef struct ATTR_PACKED
 }cdc_desc_func_call_management_t;
 
 
-typedef struct ATTR_PACKED
+typedef struct TU_ATTR_PACKED
 {
   uint8_t support_comm_request                    : 1; ///< Device supports the request combination of Set_Comm_Feature, Clear_Comm_Feature, and Get_Comm_Feature.
   uint8_t support_line_request                    : 1; ///< Device supports the request combination of Set_Line_Coding, Set_Control_Line_State, Get_Line_Coding, and the notification Serial_State.
@@ -305,7 +293,7 @@ TU_VERIFY_STATIC(sizeof(cdc_acm_capability_t) == 1, "mostly problem with compile
 
 /// \brief Abstract Control Management Functional Descriptor
 /// \details This functional descriptor describes the commands supported by by the Communications Class interface with SubClass code of \ref CDC_COMM_SUBCLASS_ABSTRACT_CONTROL_MODEL
-typedef struct ATTR_PACKED
+typedef struct TU_ATTR_PACKED
 {
   uint8_t bLength                  ; ///< Size of this descriptor in bytes.
   uint8_t bDescriptorType          ; ///< Descriptor Type, must be Class-Specific
@@ -315,7 +303,7 @@ typedef struct ATTR_PACKED
 
 /// \brief Direct Line Management Functional Descriptor
 /// \details This functional descriptor describes the commands supported by the Communications Class interface with SubClass code of \ref CDC_FUNC_DESC_DIRECT_LINE_MANAGEMENT
-typedef struct ATTR_PACKED
+typedef struct TU_ATTR_PACKED
 {
   uint8_t bLength            ; ///< Size of this descriptor in bytes.
   uint8_t bDescriptorType    ; ///< Descriptor Type, must be Class-Specific
@@ -331,7 +319,7 @@ typedef struct ATTR_PACKED
 /// \brief Telephone Ringer Functional Descriptor
 /// \details The Telephone Ringer functional descriptor describes the ringer capabilities supported by the Communications Class interface,
 /// with the SubClass code of \ref CDC_COMM_SUBCLASS_TELEPHONE_CONTROL_MODEL
-typedef struct ATTR_PACKED
+typedef struct TU_ATTR_PACKED
 {
   uint8_t bLength            ; ///< Size of this descriptor in bytes.
   uint8_t bDescriptorType    ; ///< Descriptor Type, must be Class-Specific
@@ -343,7 +331,7 @@ typedef struct ATTR_PACKED
 /// \brief Telephone Operational Modes Functional Descriptor
 /// \details The Telephone Operational Modes functional descriptor describes the operational modes supported by
 /// the Communications Class interface, with the SubClass code of \ref CDC_COMM_SUBCLASS_TELEPHONE_CONTROL_MODEL
-typedef struct ATTR_PACKED
+typedef struct TU_ATTR_PACKED
 {
   uint8_t bLength            ; ///< Size of this descriptor in bytes.
   uint8_t bDescriptorType    ; ///< Descriptor Type, must be Class-Specific
@@ -359,7 +347,7 @@ typedef struct ATTR_PACKED
 /// \brief Telephone Call and Line State Reporting Capabilities Descriptor
 /// \details The Telephone Call and Line State Reporting Capabilities functional descriptor describes the abilities of a
 /// telephone device to report optional call and line states.
-typedef struct ATTR_PACKED
+typedef struct TU_ATTR_PACKED
 {
   uint8_t bLength            ; ///< Size of this descriptor in bytes.
   uint8_t bDescriptorType    ; ///< Descriptor Type, must be Class-Specific
@@ -383,7 +371,7 @@ static inline uint8_t cdc_functional_desc_typeof(uint8_t const * p_desc)
 //--------------------------------------------------------------------+
 // Requests
 //--------------------------------------------------------------------+
-typedef struct ATTR_PACKED
+typedef struct TU_ATTR_PACKED
 {
   uint32_t bit_rate;
   uint8_t  stop_bits; ///< 0: 1 stop bit - 1: 1.5 stop bits - 2: 2 stop bits
@@ -393,7 +381,7 @@ typedef struct ATTR_PACKED
 
 TU_VERIFY_STATIC(sizeof(cdc_line_coding_t) == 7, "size is not correct");
 
-typedef struct ATTR_PACKED
+typedef struct TU_ATTR_PACKED
 {
   uint16_t dte_is_present : 1; ///< Indicates to DCE if DTE is presentor not. This signal corresponds to V.24 signal 108/2 and RS-232 signal DTR.
   uint16_t half_duplex_carrier_control : 1;

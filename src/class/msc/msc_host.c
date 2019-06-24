@@ -1,46 +1,32 @@
-/**************************************************************************/
-/*!
-    @file     msc_host.c
-    @author   hathach (tinyusb.org)
-
-    @section LICENSE
-
-    Software License Agreement (BSD License)
-
-    Copyright (c) 2013, hathach (tinyusb.org)
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are met:
-    1. Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-    2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-    3. Neither the name of the copyright holders nor the
-    names of its contributors may be used to endorse or promote products
-    derived from this software without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION HOWEVER CAUSED AND
-    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    INCLUDING NEGLIGENCE OR OTHERWISE ARISING IN ANY WAY OUT OF THE USE OF THIS
-    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    This file is part of the tinyusb stack.
-*/
-/**************************************************************************/
+/* 
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2019 Ha Thach (tinyusb.org)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * This file is part of the TinyUSB stack.
+ */
 
 #include "tusb_option.h"
 
 #if TUSB_OPT_HOST_ENABLED & CFG_TUH_MSC
-
-#define _TINY_USB_SOURCE_FILE_
 
 //--------------------------------------------------------------------+
 // INCLUDE
@@ -58,7 +44,7 @@ static osal_semaphore_def_t msch_sem_def;
 static osal_semaphore_t msch_sem_hdl;
 
 // buffer used to read scsi information when mounted, largest response data currently is inquiry
-CFG_TUSB_MEM_SECTION ATTR_ALIGNED(4) static uint8_t msch_buffer[sizeof(scsi_inquiry_resp_t)];
+CFG_TUSB_MEM_SECTION TU_ATTR_ALIGNED(4) static uint8_t msch_buffer[sizeof(scsi_inquiry_resp_t)];
 
 //--------------------------------------------------------------------+
 // INTERNAL OBJECT & FUNCTION DECLARATION
@@ -246,8 +232,8 @@ tusb_error_t  tuh_msc_read10(uint8_t dev_addr, uint8_t lun, void * p_buffer, uin
   scsi_read10_t cmd_read10 =
   {
       .cmd_code    = SCSI_CMD_READ_10,
-      .lba         = __n2be(lba),
-      .block_count = tu_u16_le2be(block_count)
+      .lba         = tu_htonl(lba),
+      .block_count = tu_htons(block_count)
   };
 
   memcpy(p_msch->cbw.command, &cmd_read10, p_msch->cbw.cmd_len);
@@ -272,8 +258,8 @@ tusb_error_t tuh_msc_write10(uint8_t dev_addr, uint8_t lun, void const * p_buffe
   scsi_write10_t cmd_write10 =
   {
       .cmd_code    = SCSI_CMD_WRITE_10,
-      .lba         = __n2be(lba),
-      .block_count = tu_u16_le2be(block_count)
+      .lba         = tu_htonl(lba),
+      .block_count = tu_htons(block_count)
   };
 
   memcpy(p_msch->cbw.command, &cmd_write10, p_msch->cbw.cmd_len);
@@ -386,8 +372,8 @@ bool msch_open(uint8_t rhport, uint8_t dev_addr, tusb_desc_interface_t const *it
     TU_ASSERT(osal_semaphore_wait(msch_sem_hdl, SCSI_XFER_TIMEOUT));
   }
 
-  p_msc->last_lba   = __be2n( ((scsi_read_capacity10_resp_t*)msch_buffer)->last_lba );
-  p_msc->block_size = (uint16_t) __be2n( ((scsi_read_capacity10_resp_t*)msch_buffer)->block_size );
+  p_msc->last_lba   = tu_ntohl( ((scsi_read_capacity10_resp_t*)msch_buffer)->last_lba );
+  p_msc->block_size = (uint16_t) tu_ntohl( ((scsi_read_capacity10_resp_t*)msch_buffer)->block_size );
 
   p_msc->is_initialized = true;
 

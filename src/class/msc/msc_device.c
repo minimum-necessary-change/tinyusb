@@ -1,49 +1,32 @@
-/**************************************************************************/
-/*!
-    @file     msc_device.c
-    @author   hathach (tinyusb.org)
-
-    @section LICENSE
-
-    Software License Agreement (BSD License)
-
-    Copyright (c) 2013, hathach (tinyusb.org)
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are met:
-    1. Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-    2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-    3. Neither the name of the copyright holders nor the
-    names of its contributors may be used to endorse or promote products
-    derived from this software without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    This file is part of the tinyusb stack.
-*/
-/**************************************************************************/
+/* 
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2019 Ha Thach (tinyusb.org)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * This file is part of the TinyUSB stack.
+ */
 
 #include "tusb_option.h"
 
 #if (TUSB_OPT_DEVICE_ENABLED && CFG_TUD_MSC)
-
-//--------------------------------------------------------------------+
-// INCLUDE
-//--------------------------------------------------------------------+
-#define _TINY_USB_SOURCE_FILE_
 
 #include "common/tusb_common.h"
 #include "msc_device.h"
@@ -59,13 +42,9 @@ enum
   MSC_STAGE_STATUS
 };
 
-typedef struct {
-  CFG_TUSB_MEM_ALIGN msc_cbw_t  cbw;
-
-//#if defined (__ICCARM__) && (CFG_TUSB_MCU == OPT_MCU_LPC11UXX || CFG_TUSB_MCU == OPT_MCU_LPC13XX)
-//  uint8_t padding1[64-sizeof(msc_cbw_t)]; // IAR cannot align struct's member
-//#endif
-
+typedef struct
+{
+  CFG_TUSB_MEM_ALIGN msc_cbw_t cbw;
   CFG_TUSB_MEM_ALIGN msc_csw_t csw;
 
   uint8_t  itf_num;
@@ -101,7 +80,8 @@ static inline uint32_t rdwr10_get_lba(uint8_t const command[])
   uint32_t lba;
   memcpy(&lba, &p_rdwr10->lba, 4);
 
-  return  __be2n(lba);
+  // lba is in Big Endian format
+  return tu_ntohl(lba);
 }
 
 static inline uint16_t rdwr10_get_blockcount(uint8_t const command[])
@@ -113,17 +93,12 @@ static inline uint16_t rdwr10_get_blockcount(uint8_t const command[])
   uint16_t block_count;
   memcpy(&block_count, &p_rdwr10->block_count, 2);
 
-  return __be2n_16(block_count);
+  return tu_ntohs(block_count);
 }
 
 //--------------------------------------------------------------------+
 // APPLICATION API
 //--------------------------------------------------------------------+
-bool tud_msc_ready(void)
-{
-  return ( _mscd_itf.ep_in != 0 ) && ( _mscd_itf.ep_out != 0 ) ;
-}
-
 bool tud_msc_set_sense(uint8_t lun, uint8_t sense_key, uint8_t add_sense_code, uint8_t add_sense_qualifier)
 {
   (void) lun;
@@ -134,7 +109,6 @@ bool tud_msc_set_sense(uint8_t lun, uint8_t sense_key, uint8_t add_sense_code, u
 
   return true;
 }
-
 
 //--------------------------------------------------------------------+
 // USBD-CLASS API
@@ -158,15 +132,14 @@ bool mscd_open(uint8_t rhport, tusb_desc_interface_t const * itf_desc, uint16_t 
 
   mscd_interface_t * p_msc = &_mscd_itf;
 
-  // Open endpoint pair with usbd helper
-  tusb_desc_endpoint_t const *p_desc_ep = (tusb_desc_endpoint_t const *) tu_desc_next( itf_desc );
-  TU_ASSERT( usbd_open_edpt_pair(rhport, p_desc_ep, TUSB_XFER_BULK, &p_msc->ep_out, &p_msc->ep_in) );
+  // Open endpoint pair
+  TU_ASSERT( usbd_open_edpt_pair(rhport, tu_desc_next(itf_desc), 2, TUSB_XFER_BULK, &p_msc->ep_out, &p_msc->ep_in) );
 
   p_msc->itf_num = itf_desc->bInterfaceNumber;
   (*p_len) = sizeof(tusb_desc_interface_t) + 2*sizeof(tusb_desc_endpoint_t);
 
   // Prepare for Command Block Wrapper
-  TU_ASSERT( dcd_edpt_xfer(rhport, p_msc->ep_out, (uint8_t*) &p_msc->cbw, sizeof(msc_cbw_t)) );
+  TU_ASSERT( usbd_edpt_xfer(rhport, p_msc->ep_out, (uint8_t*) &p_msc->cbw, sizeof(msc_cbw_t)) );
 
   return true;
 }
@@ -186,8 +159,13 @@ bool mscd_control_request(uint8_t rhport, tusb_control_request_t const * p_reque
 
     case MSC_REQ_GET_MAX_LUN:
     {
-      // returned MAX LUN is minus 1 by specs
-      uint8_t maxlun = CFG_TUD_MSC_MAXLUN-1;
+      uint8_t maxlun = 1;
+      if (tud_msc_get_maxlun_cb) maxlun = tud_msc_get_maxlun_cb();
+      TU_VERIFY(maxlun);
+
+      // MAX LUN is minus 1 by specs
+      maxlun--;
+
       usbd_control_xfer(rhport, p_request, &maxlun, 1);
     }
     break;
@@ -209,30 +187,64 @@ bool mscd_control_request_complete(uint8_t rhport, tusb_control_request_t const 
   return true;
 }
 
-// return length of response (copied to buffer), -1 if it is not an built-in commands
-int32_t proc_builtin_scsi(msc_cbw_t const * p_cbw, uint8_t* buffer, uint32_t bufsize)
+// return response's length (copied to buffer). Negative if it is not an built-in command or indicate Failed status (CSW)
+// In case of a failed status, sense key must be set for reason of failure
+int32_t proc_builtin_scsi(uint8_t lun, uint8_t const scsi_cmd[16], uint8_t* buffer, uint32_t bufsize)
 {
   (void) bufsize; // TODO refractor later
-  int32_t ret;
+  int32_t resplen;
 
-  switch ( p_cbw->command[0] )
+  switch ( scsi_cmd[0] )
   {
+    case SCSI_CMD_TEST_UNIT_READY:
+      resplen = 0;
+      if ( !tud_msc_test_unit_ready_cb(lun) )
+      {
+        // not ready response with Failed status and sense key = not ready
+        resplen = - 1;
+
+        // If sense key is not set by callback, default to Logical Unit Not Ready, Cause Not Reportable
+        if ( _mscd_itf.sense_key == 0 ) tud_msc_set_sense(lun, SCSI_SENSE_NOT_READY, 0x04, 0x00);
+      }
+    break;
+
+    case SCSI_CMD_START_STOP_UNIT:
+      resplen = 0;
+
+      if (tud_msc_start_stop_cb)
+      {
+        scsi_start_stop_unit_t const * start_stop = (scsi_start_stop_unit_t const *) scsi_cmd;
+        tud_msc_start_stop_cb(lun, start_stop->power_condition, start_stop->start, start_stop->load_eject);
+      }
+    break;
+
     case SCSI_CMD_READ_CAPACITY_10:
     {
-      scsi_read_capacity10_resp_t read_capa10;
-
       uint32_t block_count;
       uint32_t block_size;
       uint16_t block_size_u16;
 
-      tud_msc_capacity_cb(p_cbw->lun, &block_count, &block_size_u16);
+      tud_msc_capacity_cb(lun, &block_count, &block_size_u16);
       block_size = (uint32_t) block_size_u16;
 
-      read_capa10.last_lba = ENDIAN_BE(block_count-1);
-      read_capa10.block_size = ENDIAN_BE(block_size);
+      // Invalid block size/count from callback, possibly unit is not ready
+      // stall this request, set sense key to NOT READY
+      if (block_count == 0 || block_size == 0)
+      {
+        resplen = -1;
 
-      ret = sizeof(read_capa10);
-      memcpy(buffer, &read_capa10, ret);
+        // If sense key is not set by callback, default to Logical Unit Not Ready, Cause Not Reportable
+        if ( _mscd_itf.sense_key == 0 ) tud_msc_set_sense(lun, SCSI_SENSE_NOT_READY, 0x04, 0x00);
+      }else
+      {
+        scsi_read_capacity10_resp_t read_capa10;
+
+        read_capa10.last_lba = tu_htonl(block_count-1);
+        read_capa10.block_size = tu_htonl(block_size);
+
+        resplen = sizeof(read_capa10);
+        memcpy(buffer, &read_capa10, resplen);
+      }
     }
     break;
 
@@ -249,12 +261,24 @@ int32_t proc_builtin_scsi(msc_cbw_t const * p_cbw, uint8_t* buffer, uint32_t buf
       uint32_t block_count;
       uint16_t block_size;
 
-      tud_msc_capacity_cb(p_cbw->lun, &block_count, &block_size);
-      read_fmt_capa.block_num = ENDIAN_BE(block_count);
-      read_fmt_capa.block_size_u16 = ENDIAN_BE16(block_size);
+      tud_msc_capacity_cb(lun, &block_count, &block_size);
 
-      ret = sizeof(read_fmt_capa);
-      memcpy(buffer, &read_fmt_capa, ret);
+      // Invalid block size/count from callback, possibly unit is not ready
+      // stall this request, set sense key to NOT READY
+      if (block_count == 0 || block_size == 0)
+      {
+        resplen = -1;
+
+        // If sense key is not set by callback, default to Logical Unit Not Ready, Cause Not Reportable
+        if ( _mscd_itf.sense_key == 0 ) tud_msc_set_sense(lun, SCSI_SENSE_NOT_READY, 0x04, 0x00);
+      }else
+      {
+        read_fmt_capa.block_num = tu_htonl(block_count);
+        read_fmt_capa.block_size_u16 = tu_htons(block_size);
+
+        resplen = sizeof(read_fmt_capa);
+        memcpy(buffer, &read_fmt_capa, resplen);
+      }
     }
     break;
 
@@ -265,17 +289,17 @@ int32_t proc_builtin_scsi(msc_cbw_t const * p_cbw, uint8_t* buffer, uint32_t buf
           .is_removable         = 1,
           .version              = 2,
           .response_data_format = 2,
-          .vendor_id            = "Adafruit",
-          .product_id           = "Feather52840",
-          .product_rev          = "1.0"
       };
 
-      strncpy((char*) inquiry_rsp.vendor_id  , CFG_TUD_MSC_VENDOR     , sizeof(inquiry_rsp.vendor_id));
-      strncpy((char*) inquiry_rsp.product_id , CFG_TUD_MSC_PRODUCT    , sizeof(inquiry_rsp.product_id));
-      strncpy((char*) inquiry_rsp.product_rev, CFG_TUD_MSC_PRODUCT_REV, sizeof(inquiry_rsp.product_rev));
+      // vendor_id, product_id, product_rev is space padded string
+      memset(inquiry_rsp.vendor_id  , ' ', sizeof(inquiry_rsp.vendor_id));
+      memset(inquiry_rsp.product_id , ' ', sizeof(inquiry_rsp.product_id));
+      memset(inquiry_rsp.product_rev, ' ', sizeof(inquiry_rsp.product_rev));
 
-      ret = sizeof(inquiry_rsp);
-      memcpy(buffer, &inquiry_rsp, ret);
+      tud_msc_inquiry_cb(lun, inquiry_rsp.vendor_id, inquiry_rsp.product_id, inquiry_rsp.product_rev);
+
+      resplen = sizeof(inquiry_rsp);
+      memcpy(buffer, &inquiry_rsp, resplen);
     }
     break;
 
@@ -292,12 +316,12 @@ int32_t proc_builtin_scsi(msc_cbw_t const * p_cbw, uint8_t* buffer, uint32_t buf
 
       bool writable = true;
       if (tud_msc_is_writable_cb) {
-          writable = tud_msc_is_writable_cb(p_cbw->lun);
+          writable = tud_msc_is_writable_cb(lun);
       }
       mode_resp.write_protected = !writable;
 
-      ret = sizeof(mode_resp);
-      memcpy(buffer, &mode_resp, ret);
+      resplen = sizeof(mode_resp);
+      memcpy(buffer, &mode_resp, resplen);
     }
     break;
 
@@ -315,18 +339,18 @@ int32_t proc_builtin_scsi(msc_cbw_t const * p_cbw, uint8_t* buffer, uint32_t buf
       sense_rsp.add_sense_code      = _mscd_itf.add_sense_code;
       sense_rsp.add_sense_qualifier = _mscd_itf.add_sense_qualifier;
 
-      ret = sizeof(sense_rsp);
-      memcpy(buffer, &sense_rsp, ret);
+      resplen = sizeof(sense_rsp);
+      memcpy(buffer, &sense_rsp, resplen);
 
       // Clear sense data after copy
-      tud_msc_set_sense(p_cbw->lun, 0, 0, 0);
+      tud_msc_set_sense(lun, 0, 0, 0);
     }
     break;
 
-    default: ret = -1; break;
+    default: resplen = -1; break;
   }
 
-  return ret;
+  return resplen;
 }
 
 bool mscd_xfer_cb(uint8_t rhport, uint8_t ep_addr, xfer_result_t event, uint32_t xferred_bytes)
@@ -365,60 +389,50 @@ bool mscd_xfer_cb(uint8_t rhport, uint8_t ep_addr, xfer_result_t event, uint32_t
       else
       {
         // For other SCSI commands
-        // 1. Zero : Invoke app callback, skip DATA and move to STATUS stage
-        // 2. OUT  : queue transfer (invoke app callback after done)
-        // 3. IN   : invoke app callback to get response
-        if ( p_cbw->total_bytes == 0)
+        // 1. OUT : queue transfer (invoke app callback after done)
+        // 2. IN & Zero: Process if is built-in, else Invoke app callback. Skip DATA if zero length
+        if ( (p_cbw->total_bytes > 0 ) && !tu_bit_test(p_cbw->dir, 7) )
         {
-          int32_t const cb_result = tud_msc_scsi_cb(p_cbw->lun, p_cbw->command, NULL, 0);
-
-          p_msc->total_len = 0;
-          p_msc->stage = MSC_STAGE_STATUS;
-
-          if ( cb_result < 0 )
-          {
-            p_csw->status = MSC_CSW_STATUS_FAILED;
-            tud_msc_set_sense(p_cbw->lun, SCSI_SENSE_ILLEGAL_REQUEST, 0x20, 0x00); // Sense = Invalid Command Operation
-          }
-          else
-          {
-            p_csw->status = MSC_CSW_STATUS_PASSED;
-          }
-        }
-        else if ( !TU_BIT_TEST(p_cbw->dir, 7) )
+          // queue transfer
+          TU_ASSERT( usbd_edpt_xfer(rhport, p_msc->ep_out, _mscd_buf, p_msc->total_len) );
+        }else
         {
-          // OUT transfer
-          TU_ASSERT( dcd_edpt_xfer(rhport, p_msc->ep_out, _mscd_buf, p_msc->total_len) );
-        }
-        else
-        {
-          // IN Transfer
-          int32_t cb_result;
+          int32_t resplen;
 
-          // first process if it is a built-in commands
-          cb_result = proc_builtin_scsi(p_cbw, _mscd_buf, sizeof(_mscd_buf));
+          // First process if it is a built-in commands
+          resplen = proc_builtin_scsi(p_cbw->lun, p_cbw->command, _mscd_buf, sizeof(_mscd_buf));
 
-          // Not an built-in command, invoke user callback
-          if ( cb_result < 0 )
+          // Not built-in, invoke user callback
+          if ( (resplen < 0) && (p_msc->sense_key == 0) )
           {
-            cb_result = tud_msc_scsi_cb(p_cbw->lun, p_cbw->command, _mscd_buf, p_msc->total_len);
+            resplen = tud_msc_scsi_cb(p_cbw->lun, p_cbw->command, _mscd_buf, p_msc->total_len);
           }
 
-          if ( cb_result > 0 )
-          {
-            p_msc->total_len = (uint32_t) cb_result;
-            p_csw->status = MSC_CSW_STATUS_PASSED;
-
-            TU_ASSERT( p_cbw->total_bytes >= p_msc->total_len ); // cannot return more than host expect
-            TU_ASSERT( dcd_edpt_xfer(rhport, p_msc->ep_in, _mscd_buf, p_msc->total_len) );
-          }else
+          if ( resplen < 0 )
           {
             p_msc->total_len = 0;
             p_csw->status = MSC_CSW_STATUS_FAILED;
             p_msc->stage = MSC_STAGE_STATUS;
 
-            tud_msc_set_sense(p_cbw->lun, SCSI_SENSE_ILLEGAL_REQUEST, 0x20, 0x00); // Sense = Invalid Command Operation
-            dcd_edpt_stall(rhport, p_msc->ep_in);
+            // failed but senskey is not set: default to Illegal Request
+            if ( p_msc->sense_key == 0 ) tud_msc_set_sense(p_cbw->lun, SCSI_SENSE_ILLEGAL_REQUEST, 0x20, 0x00);
+
+            /// Stall bulk In if needed
+            if (p_cbw->total_bytes) usbd_edpt_stall(rhport, p_msc->ep_in);
+          }
+          else
+          {
+            p_msc->total_len = (uint32_t) resplen;
+            p_csw->status = MSC_CSW_STATUS_PASSED;
+
+            if (p_msc->total_len)
+            {
+              TU_ASSERT( p_cbw->total_bytes >= p_msc->total_len ); // cannot return more than host expect
+              TU_ASSERT( usbd_edpt_xfer(rhport, p_msc->ep_in, _mscd_buf, p_msc->total_len) );
+            }else
+            {
+              p_msc->stage = MSC_STAGE_STATUS;
+            }
           }
         }
       }
@@ -426,7 +440,7 @@ bool mscd_xfer_cb(uint8_t rhport, uint8_t ep_addr, xfer_result_t event, uint32_t
 
     case MSC_STAGE_DATA:
       // OUT transfer, invoke callback if needed
-      if ( !TU_BIT_TEST(p_cbw->dir, 7) )
+      if ( !tu_bit_test(p_cbw->dir, 7) )
       {
         if ( SCSI_CMD_WRITE_10 != p_cbw->command[0] )
         {
@@ -518,13 +532,19 @@ bool mscd_xfer_cb(uint8_t rhport, uint8_t ep_addr, xfer_result_t event, uint32_t
   if ( p_msc->stage == MSC_STAGE_STATUS )
   {
     // Either endpoints is stalled, need to wait until it is cleared by host
-    if ( dcd_edpt_stalled(rhport,  p_msc->ep_in) || dcd_edpt_stalled(rhport,  p_msc->ep_out) )
+    if ( usbd_edpt_stalled(rhport,  p_msc->ep_in) || usbd_edpt_stalled(rhport,  p_msc->ep_out) )
     {
       // simulate an transfer complete with adjusted parameters --> this driver callback will fired again
       dcd_event_xfer_complete(rhport, p_msc->ep_out, 0, XFER_RESULT_SUCCESS, false);
     }
     else
     {
+      // Move to default CMD stage when sending status
+      p_msc->stage = MSC_STAGE_CMD;
+
+      // Send SCSI Status
+      TU_ASSERT( usbd_edpt_xfer(rhport, p_msc->ep_in , (uint8_t*) &p_msc->csw, sizeof(msc_csw_t)) );
+
       // Invoke complete callback if defined
       if ( SCSI_CMD_READ_10 == p_cbw->command[0])
       {
@@ -539,13 +559,8 @@ bool mscd_xfer_cb(uint8_t rhport, uint8_t ep_addr, xfer_result_t event, uint32_t
         if ( tud_msc_scsi_complete_cb ) tud_msc_scsi_complete_cb(p_cbw->lun, p_cbw->command);
       }
 
-      // Move to default CMD stage after sending status
-      p_msc->stage         = MSC_STAGE_CMD;
-
-      TU_ASSERT( dcd_edpt_xfer(rhport, p_msc->ep_in , (uint8_t*) &p_msc->csw, sizeof(msc_csw_t)) );
-
-      //------------- Queue the next CBW -------------//
-      TU_ASSERT( dcd_edpt_xfer(rhport, p_msc->ep_out, (uint8_t*) &p_msc->cbw, sizeof(msc_cbw_t)) );
+      // Queue for the next CBW
+      TU_ASSERT( usbd_edpt_xfer(rhport, p_msc->ep_out, (uint8_t*) &p_msc->cbw, sizeof(msc_cbw_t)) );
     }
   }
 
@@ -578,7 +593,7 @@ static void proc_read10_cmd(uint8_t rhport, mscd_interface_t* p_msc)
     p_csw->status       = MSC_CSW_STATUS_FAILED;
 
     tud_msc_set_sense(p_cbw->lun, SCSI_SENSE_ILLEGAL_REQUEST, 0x20, 0x00); // Sense = Invalid Command Operation
-    dcd_edpt_stall(rhport, p_msc->ep_in);
+    usbd_edpt_stall(rhport, p_msc->ep_in);
   }
   else if ( nbytes == 0 )
   {
@@ -587,19 +602,32 @@ static void proc_read10_cmd(uint8_t rhport, mscd_interface_t* p_msc)
   }
   else
   {
-    TU_ASSERT( dcd_edpt_xfer(rhport, p_msc->ep_in, _mscd_buf, nbytes), );
+    TU_ASSERT( usbd_edpt_xfer(rhport, p_msc->ep_in, _mscd_buf, nbytes), );
   }
 }
 
 static void proc_write10_cmd(uint8_t rhport, mscd_interface_t* p_msc)
 {
   msc_cbw_t const * p_cbw = &p_msc->cbw;
+  bool writable = true;
+  if (tud_msc_is_writable_cb) {
+    writable = tud_msc_is_writable_cb(p_cbw->lun);
+  }
+  if (!writable) {
+    msc_csw_t* p_csw = &p_msc->csw;
+    p_csw->data_residue = p_cbw->total_bytes;
+    p_csw->status       = MSC_CSW_STATUS_FAILED;
+
+    tud_msc_set_sense(p_cbw->lun, SCSI_SENSE_DATA_PROTECT, 0x27, 0x00); // Sense = Write protected
+    usbd_edpt_stall(rhport, p_msc->ep_out);
+    return;
+  }
 
   // remaining bytes capped at class buffer
   int32_t nbytes = (int32_t) tu_min32(sizeof(_mscd_buf), p_cbw->total_bytes-p_msc->xferred_len);
 
   // Write10 callback will be called later when usb transfer complete
-  TU_ASSERT( dcd_edpt_xfer(rhport, p_msc->ep_out, _mscd_buf, nbytes), );
+  TU_ASSERT( usbd_edpt_xfer(rhport, p_msc->ep_out, _mscd_buf, nbytes), );
 }
 
 #endif

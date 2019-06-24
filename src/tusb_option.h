@@ -1,40 +1,28 @@
-/**************************************************************************/
-/*!
-    @file     tusb_option.h
-    @author   hathach (tinyusb.org)
-
-    @section LICENSE
-
-    Software License Agreement (BSD License)
-
-    Copyright (c) 2013, hathach (tinyusb.org)
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are met:
-    1. Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-    2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-    3. Neither the name of the copyright holders nor the
-    names of its contributors may be used to endorse or promote products
-    derived from this software without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION HOWEVER CAUSED AND
-    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    INCLUDING NEGLIGENCE OR OTHERWISE ARISING IN ANY WAY OUT OF THE USE OF THIS
-    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    This file is part of the tinyusb stack.
-*/
-/**************************************************************************/
+/* 
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2019 Ha Thach (tinyusb.org)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * This file is part of the TinyUSB stack.
+ */
 
 #ifndef _TUSB_OPTION_H_
 #define _TUSB_OPTION_H_
@@ -48,19 +36,22 @@
 /** \defgroup group_mcu Supported MCU
  * \ref CFG_TUSB_MCU must be defined to one of these
  *  @{ */
-#define OPT_MCU_LPC11UXX       1 ///< NXP LPC11Uxx
+#define OPT_MCU_LPC11UXX        1 ///< NXP LPC11Uxx
+#define OPT_MCU_LPC13XX         3 ///< NXP LPC13xx
+#define OPT_MCU_LPC175X_6X      4 ///< NXP LPC175x, LPC176x
+#define OPT_MCU_LPC177X_8X      5 ///< NXP LPC177x, LPC178x
+#define OPT_MCU_LPC18XX         6 ///< NXP LPC18xx
+#define OPT_MCU_LPC40XX         7 ///< NXP LPC40xx
+#define OPT_MCU_LPC43XX         8 ///< NXP LPC43xx
 
-#define OPT_MCU_LPC13XX        3 ///< NXP LPC13xx
-#define OPT_MCU_LPC175X_6X     4 ///< NXP LPC175x, LPC176x
-#define OPT_MCU_LPC177X_8X     5 ///< NXP LPC177x, LPC178x
-#define OPT_MCU_LPC18XX        6 ///< NXP LPC18xx
-#define OPT_MCU_LPC40XX        7 ///< NXP LPC40xx
-#define OPT_MCU_LPC43XX        8 ///< NXP LPC43xx
-
-#define OPT_MCU_NRF5X        100 ///< Nordic nRF5x series
+#define OPT_MCU_NRF5X         100 ///< Nordic nRF5x series
 
 #define OPT_MCU_SAMD21        200 ///< MicroChip SAMD21
 #define OPT_MCU_SAMD51        201 ///< MicroChip SAMD51
+
+#define OPT_MCU_STM32F4       300 ///< ST STM32F4
+#define OPT_MCU_STM32F3       301 ///< ST STM32F3
+
 /** @} */
 
 /** \defgroup group_supported_os Supported RTOS
@@ -128,16 +119,10 @@
 //--------------------------------------------------------------------+
 // COMMON OPTIONS
 //--------------------------------------------------------------------+
-/**
-  determines the debug level for the stack
-  - Level 3: TBD
-  - Level 2: TBD
-  - Level 1: Print out if Assert failed. STATIC_VAR is NULL --> accessible when debugging
-  - Level 0: no debug information is generated
-*/
+
+// Debug enable to print out error message
 #ifndef CFG_TUSB_DEBUG
   #define CFG_TUSB_DEBUG 0
-  #warning CFG_TUSB_DEBUG is not defined, default value is 0
 #endif
 
 // place data in accessible RAM for usb controller
@@ -146,55 +131,41 @@
 #endif
 
 #ifndef CFG_TUSB_MEM_ALIGN
-#define CFG_TUSB_MEM_ALIGN          ATTR_ALIGNED(4)
+#define CFG_TUSB_MEM_ALIGN        TU_ATTR_ALIGNED(4)
 #endif
 
 #ifndef CFG_TUSB_OS
-#define CFG_TUSB_OS OPT_OS_NONE
+#define CFG_TUSB_OS               OPT_OS_NONE
 #endif
 
 //--------------------------------------------------------------------
 // DEVICE OPTIONS
 //--------------------------------------------------------------------
-#if TUSB_OPT_DEVICE_ENABLED
 
-  #ifndef CFG_TUD_ENDOINT0_SIZE
-    #define CFG_TUD_ENDOINT0_SIZE    64
-  #endif
+#ifndef CFG_TUD_ENDOINT0_SIZE
+  #define CFG_TUD_ENDOINT0_SIZE   64
+#endif
 
-  #ifndef CFG_TUD_CTRL_BUFSIZE
-    #define CFG_TUD_CTRL_BUFSIZE 256
-  #endif
+#ifndef CFG_TUD_CDC
+  #define CFG_TUD_CDC             0
+#endif
 
-  #ifndef CFG_TUD_DESC_AUTO
-    #define CFG_TUD_DESC_AUTO 0
-  #endif
+#ifndef CFG_TUD_MSC
+  #define CFG_TUD_MSC             0
+#endif
 
-  #ifndef CFG_TUD_CDC
-    #define CFG_TUD_CDC            0
-  #endif
+#ifndef CFG_TUD_HID
+  #define CFG_TUD_HID             0
+#endif
 
-  #ifndef CFG_TUD_MSC
-    #define CFG_TUD_MSC          0
-  #endif
+#ifndef CFG_TUD_MIDI
+  #define CFG_TUD_MIDI            0
+#endif
 
-  #ifndef CFG_TUD_HID_KEYBOARD
-  #define CFG_TUD_HID_KEYBOARD        0
-  #endif
+#ifndef CFG_TUD_CUSTOM_CLASS
+  #define CFG_TUD_CUSTOM_CLASS    0
+#endif
 
-  #ifndef CFG_TUD_HID_MOUSE
-  #define CFG_TUD_HID_MOUSE           0
-  #endif
-
-  #ifndef CFG_TUD_HID_KEYBOARD_BOOT
-    #define CFG_TUD_HID_KEYBOARD_BOOT 0
-  #endif
-
-  #ifndef CFG_TUD_HID_MOUSE_BOOT
-    #define CFG_TUD_HID_MOUSE_BOOT 0
-  #endif
-
-#endif // TUSB_OPT_DEVICE_ENABLED
 
 //--------------------------------------------------------------------
 // HOST OPTIONS

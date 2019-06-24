@@ -44,7 +44,7 @@ One useful clock debugging technique is to set up a PWM output at a known value 
 
 Setup your USB in a crystal-less mode when available. That makes the code easier to port across boards.
 
-#### board_led_control
+#### board_led_write
 Feel free to skip this until you want to verify your demo code is running. To implement, set the pin corresponding to the led to output a value that lights the LED when `state` is true.
 
 ### OS Abstraction Layer (OSAL)
@@ -52,12 +52,6 @@ Feel free to skip this until you want to verify your demo code is running. To im
 The OS Abstraction Layer is responsible for providing basic data structures for TinyUSB that may allow for concurrency when used with an RTOS. Without an RTOS it simply handles concurrency issues between the main code and interrupts.
 
 The code is almost entirely agnostic of MCU and lives in `src/osal`.
-
-#### tusb_hal_millis
-
-The OPT_OS_NONE option is the only option which requires an MCU specific function. It needs `tusb_hal_millis` to measure the passage of time. On ARM this is commonly done with SysTick. The function returns the elapsed number of milliseconds since startup.
-
-`tusb_hal_millis` is also provided in `hw/bsp/<board name>/board_<board name>.c` because it may vary with MCU use.
 
 ### Device API
 
@@ -81,6 +75,9 @@ If your peripheral automatically changes address during enumeration (like the nr
 
 ##### dcd_set_config
 Called when the device received SET_CONFIG request, you can leave this empty if your peripheral does not require any specific action.
+
+##### dcd_remote_wakeup
+Called to remote wake up host when suspended (e.g hid keyboard)
 
 #### Special events
 You must let TinyUSB know when certain events occur so that it can continue its work. There are a few methods you can call to queue events for TinyUSB to process.
@@ -153,9 +150,9 @@ The arguments are:
 * the result of the transfer. Failure isn't handled yet.
 * `true` to note the call is from an interrupt handler.
 
-##### dcd_edpt_stall / dcd_edpt_stalled / dcd_edpt_clear_stall
+##### dcd_edpt_stall / dcd_edpt_clear_stall
 
-Stalling is one way an endpoint can indicate failure such as when an unsupported command is transmitted. The trio of `dcd_edpt_stall`, `dcd_edpt_stalled`, `dcd_edpt_clear_stall` help manage the stall state of all endpoints.
+Stalling is one way an endpoint can indicate failure such as when an unsupported command is transmitted. The pair of `dcd_edpt_stall`, `dcd_edpt_clear_stall` help manage the stall state of all endpoints.
 
 ## Woohoo!
 
